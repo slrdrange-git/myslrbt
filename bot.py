@@ -24,7 +24,7 @@ TOKEN = os.environ.get('BOT_TOKEN')
 PAYMENT_TOKEN = os.environ.get('PAYMENT_TOKEN')  # Для Telegram Stars
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
 
 # Логи
 logging.basicConfig(level=logging.INFO)
