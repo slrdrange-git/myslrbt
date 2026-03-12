@@ -26,7 +26,7 @@ YOOMONEY_WALLET = os.environ.get('YOOMONEY_WALLET')
 YOOMONEY_SECRET = os.environ.get('YOOMONEY_SECRET')
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
 
 # Логи
 logging.basicConfig(level=logging.INFO)
@@ -84,6 +84,155 @@ def get_referrals():
 def save_referrals(referrals):
     save_json('referrals.json', referrals)
 
+# === Товары ===
+def get_products():
+    products = load_json('products.json')
+    if not products:
+        # Если файла нет, создаём с дефолтными товарами
+        products = [
+            {
+                "id": "tattoo_bot",
+                "name": "🤖 Бот для тату-мастера",
+                "price": 1999,
+                "type": "base",
+                "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+                "features": [
+                    "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
+                    "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
+                    "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+                    "📈 РОСТ: Отзывы + промокоды = новые клиенты"
+                ],
+                "client_features": [
+                    "✅ Услуги с ценами — без 'прайс в личку'",
+                    "✅ Запись за 30 секунд",
+                    "✅ История записей и отмена",
+                    "✅ Отзывы с фото + промокоды",
+                    "✅ Напоминание за 24 часа",
+                    "✅ Инфо с контактами"
+                ],
+                "admin_features": [
+                    "✅ Управление услугами",
+                    "✅ Все записи с фильтрацией",
+                    "✅ Подтверждение/отмена в 1 клик",
+                    "✅ Модерация отзывов",
+                    "✅ Статистика по выручке",
+                    "✅ Рассылка клиентам",
+                    "✅ Уведомления о каждой записи"
+                ]
+            },
+            {
+                "id": "manicure_bot",
+                "name": "💅 Бот для маникюра",
+                "price": 1999,
+                "type": "base",
+                "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+                "features": [
+                    "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
+                    "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
+                    "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+                    "📈 РОСТ: Отзывы + промокоды = новые клиенты"
+                ],
+                "client_features": [
+                    "✅ Услуги с ценами",
+                    "✅ Запись за 30 секунд",
+                    "✅ История записей",
+                    "✅ Отзывы с фото",
+                    "✅ Напоминание за 24 часа"
+                ],
+                "admin_features": [
+                    "✅ Управление услугами",
+                    "✅ Все записи",
+                    "✅ Подтверждение/отмена",
+                    "✅ Модерация отзывов",
+                    "✅ Статистика",
+                    "✅ Рассылка",
+                    "✅ Уведомления"
+                ]
+            },
+            {
+                "id": "barber_bot",
+                "name": "✂️ Бот для барбера",
+                "price": 1999,
+                "type": "base",
+                "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+                "features": [
+                    "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
+                    "⚡️ Окупаемость: 1-2 клиента — окупился",
+                    "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+                    "📈 РОСТ: Отзывы + промокоды"
+                ],
+                "client_features": [
+                    "✅ Услуги с ценами",
+                    "✅ Запись за 30 секунд",
+                    "✅ История записей",
+                    "✅ Отзывы с фото",
+                    "✅ Напоминание за 24 часа"
+                ],
+                "admin_features": [
+                    "✅ Управление услугами",
+                    "✅ Все записи",
+                    "✅ Подтверждение/отмена",
+                    "✅ Модерация отзывов",
+                    "✅ Статистика",
+                    "✅ Уведомления"
+                ]
+            },
+            {
+                "id": "custom_bot",
+                "name": "⚡️ Индивидуальный бот",
+                "price": 2249,
+                "type": "custom",
+                "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+                "features": [
+                    "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
+                    "⚡️ Окупаемость: 1-2 клиента — окупился",
+                    "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+                    "📈 РОСТ: Отзывы + промокоды"
+                ],
+                "client_features": [
+                    "✅ Любой функционал под ваш бизнес",
+                    "✅ Индивидуальный дизайн",
+                    "✅ Интеграции с CRM",
+                    "✅ Поддержка 2 месяца"
+                ],
+                "admin_features": [
+                    "✅ Полное администрирование",
+                    "✅ Статистика",
+                    "✅ Рассылка",
+                    "✅ Уведомления"
+                ]
+            },
+            {
+                "id": "complex_bot",
+                "name": "🚀 Проект повышенной сложности",
+                "price": 2249,
+                "type": "custom",
+                "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+                "features": [
+                    "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
+                    "⚡️ Окупаемость: 1-2 клиента — окупился",
+                    "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+                    "📈 РОСТ: Отзывы + промокоды"
+                ],
+                "client_features": [
+                    "✅ Сложная логика",
+                    "✅ Множество интеграций",
+                    "✅ Кастомные решения",
+                    "✅ Поддержка 3 месяца"
+                ],
+                "admin_features": [
+                    "✅ Полное администрирование",
+                    "✅ Расширенная статистика",
+                    "✅ Приоритетная поддержка"
+                ]
+            }
+        ]
+        save_json('products.json', products)
+    return products
+
+def save_products(products):
+    save_json('products.json', products)
+
 # === Демо-проект ===
 DEMO_BOT_LINK = "https://t.me/x404x_test_bot"
 DEMO_PROJECT = {
@@ -102,152 +251,6 @@ DEMO_PROJECT = {
 # === Программа лояльности ===
 LOYALTY_THRESHOLD = 5
 LOYALTY_BONUS = 250
-
-# === Цены ===
-BASE_PRICE = 1999
-CUSTOM_PRICE = 2249
-
-# ============================================
-# ТОВАРЫ (БОТЫ)
-# ============================================
-PRODUCTS = [
-    {
-        "id": "tattoo_bot",
-        "name": "🤖 Бот для тату-мастера",
-        "price": BASE_PRICE,
-        "type": "base",
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
-            "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды = новые клиенты"
-        ],
-        "client_features": [
-            "✅ Услуги с ценами — без 'прайс в личку'",
-            "✅ Запись за 30 секунд",
-            "✅ История записей и отмена",
-            "✅ Отзывы с фото + промокоды",
-            "✅ Напоминание за 24 часа",
-            "✅ Инфо с контактами"
-        ],
-        "admin_features": [
-            "✅ Управление услугами",
-            "✅ Все записи с фильтрацией",
-            "✅ Подтверждение/отмена в 1 клик",
-            "✅ Модерация отзывов",
-            "✅ Статистика по выручке",
-            "✅ Рассылка клиентам",
-            "✅ Уведомления о каждой записи"
-        ]
-    },
-    {
-        "id": "manicure_bot",
-        "name": "💅 Бот для маникюра",
-        "price": BASE_PRICE,
-        "type": "base",
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
-            "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды = новые клиенты"
-        ],
-        "client_features": [
-            "✅ Услуги с ценами",
-            "✅ Запись за 30 секунд",
-            "✅ История записей",
-            "✅ Отзывы с фото",
-            "✅ Напоминание за 24 часа"
-        ],
-        "admin_features": [
-            "✅ Управление услугами",
-            "✅ Все записи",
-            "✅ Подтверждение/отмена",
-            "✅ Модерация отзывов",
-            "✅ Статистика",
-            "✅ Рассылка",
-            "✅ Уведомления"
-        ]
-    },
-    {
-        "id": "barber_bot",
-        "name": "✂️ Бот для барбера",
-        "price": BASE_PRICE,
-        "type": "base",
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
-            "⚡️ Окупаемость: 1-2 клиента — окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды"
-        ],
-        "client_features": [
-            "✅ Услуги с ценами",
-            "✅ Запись за 30 секунд",
-            "✅ История записей",
-            "✅ Отзывы с фото",
-            "✅ Напоминание за 24 часа"
-        ],
-        "admin_features": [
-            "✅ Управление услугами",
-            "✅ Все записи",
-            "✅ Подтверждение/отмена",
-            "✅ Модерация отзывов",
-            "✅ Статистика",
-            "✅ Уведомления"
-        ]
-    },
-    {
-        "id": "custom_bot",
-        "name": "⚡️ Индивидуальный бот",
-        "price": CUSTOM_PRICE,
-        "type": "custom",
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
-            "⚡️ Окупаемость: 1-2 клиента — окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды"
-        ],
-        "client_features": [
-            "✅ Любой функционал под ваш бизнес",
-            "✅ Индивидуальный дизайн",
-            "✅ Интеграции с CRM",
-            "✅ Поддержка 2 месяца"
-        ],
-        "admin_features": [
-            "✅ Полное администрирование",
-            "✅ Статистика",
-            "✅ Рассылка",
-            "✅ Уведомления"
-        ]
-    },
-    {
-        "id": "complex_bot",
-        "name": "🚀 Проект повышенной сложности",
-        "price": CUSTOM_PRICE,
-        "type": "custom",
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
-            "⚡️ Окупаемость: 1-2 клиента — окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды"
-        ],
-        "client_features": [
-            "✅ Сложная логика",
-            "✅ Множество интеграций",
-            "✅ Кастомные решения",
-            "✅ Поддержка 3 месяца"
-        ],
-        "admin_features": [
-            "✅ Полное администрирование",
-            "✅ Расширенная статистика",
-            "✅ Приоритетная поддержка"
-        ]
-    }
-]
 
 # ============================================
 # ГЕНЕРАЦИЯ РЕФЕРАЛЬНОЙ ССЫЛКИ
@@ -319,6 +322,10 @@ class AdminStates(StatesGroup):
     processing_order = State()
     broadcast_message = State()
     broadcast_confirm = State()
+    adding_product_name = State()
+    adding_product_price = State()
+    adding_product_type = State()
+    adding_product_features = State()
 
 # ============================================
 # ПРОВЕРКА НА АДМИНА
@@ -366,8 +373,9 @@ def main_menu():
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
 def products_keyboard():
+    products = get_products()
     kb = []
-    for p in PRODUCTS:
+    for p in products:
         kb.append([InlineKeyboardButton(
             text=f"{p['name']} - {p['price']}₽",
             callback_data=f"prod_{p['id']}"
@@ -419,6 +427,7 @@ def photo_options_keyboard():
 
 def admin_menu():
     kb = [
+        [InlineKeyboardButton(text="📦 Управление товарами", callback_data="admin_products_menu")],
         [InlineKeyboardButton(text="📋 Заказы", callback_data="admin_orders")],
         [InlineKeyboardButton(text="⭐️ Модерация отзывов", callback_data="admin_reviews")],
         [InlineKeyboardButton(text="👥 Клиенты", callback_data="admin_clients")],
@@ -427,6 +436,25 @@ def admin_menu():
         [InlineKeyboardButton(text="🎁 Бонусы лояльности", callback_data="admin_loyalty")],
         [InlineKeyboardButton(text="🔙 Выход", callback_data="exit_admin")]
     ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def admin_products_management_keyboard():
+    kb = [
+        [InlineKeyboardButton(text="➕ Добавить товар", callback_data="admin_add_product")],
+        [InlineKeyboardButton(text="📋 Список товаров", callback_data="admin_products_list")],
+        [InlineKeyboardButton(text="🔙 В админку", callback_data="admin")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+def admin_products_list_keyboard():
+    products = get_products()
+    kb = []
+    for p in products:
+        kb.append([InlineKeyboardButton(
+            text=f"{p['name']} - {p['price']}₽",
+            callback_data=f"admin_edit_product_{p['id']}"
+        )])
+    kb.append([InlineKeyboardButton(text="🔙 Назад", callback_data="admin_products_menu")])
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
 def back_keyboard():
@@ -627,10 +655,15 @@ async def cancel_action(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "catalog")
 async def catalog(callback: types.CallbackQuery):
+    products = get_products()
+    base_count = len([p for p in products if p['type'] == 'base'])
+    custom_count = len([p for p in products if p['type'] == 'custom'])
+    
     text = (
         "🛍 <b>Каталог ботов</b>\n\n"
-        f"💰 Все базовые проекты: {BASE_PRICE}₽\n"
-        f"🚀 Индивидуальные и сложные: {CUSTOM_PRICE}₽\n\n"
+        f"💰 Всего товаров: {len(products)}\n"
+        f"• Базовые проекты: {base_count} шт. (1999₽)\n"
+        f"• Индивидуальные и сложные: {custom_count} шт. (2249₽)\n\n"
         "Выбери готовое решение:"
     )
     await callback.message.edit_text(text, reply_markup=products_keyboard())
@@ -638,7 +671,8 @@ async def catalog(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("prod_"))
 async def show_product(callback: types.CallbackQuery, state: FSMContext):
     prod_id = callback.data.replace("prod_", "")
-    product = next((p for p in PRODUCTS if p['id'] == prod_id), None)
+    products = get_products()
+    product = next((p for p in products if p['id'] == prod_id), None)
     
     if not product:
         await callback.answer("❌ Товар не найден")
@@ -908,7 +942,8 @@ async def my_orders(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("order_"))
 async def start_order(callback: types.CallbackQuery, state: FSMContext):
     prod_id = callback.data.replace("order_", "")
-    product = next((p for p in PRODUCTS if p['id'] == prod_id), None)
+    products = get_products()
+    product = next((p for p in products if p['id'] == prod_id), None)
     
     if not product:
         await callback.answer("❌ Товар не найден")
@@ -1007,6 +1042,164 @@ async def exit_admin(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=main_menu()
     )
 
+# ---------- УПРАВЛЕНИЕ ТОВАРАМИ ----------
+@dp.callback_query(F.data == "admin_products_menu")
+async def admin_products_menu(callback: types.CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    await callback.message.edit_text(
+        "📦 <b>Управление товарами</b>\n\nВыберите действие:",
+        reply_markup=admin_products_management_keyboard()
+    )
+
+@dp.callback_query(F.data == "admin_products_list")
+async def admin_products_list(callback: types.CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    products = get_products()
+    text = "📋 <b>Список товаров</b>\n\n"
+    for p in products:
+        text += f"• <b>{p['name']}</b>\n"
+        text += f"  💰 {p['price']}₽\n"
+        text += f"  🏷 Тип: {p['type']}\n"
+        text += f"  🆔 {p['id']}\n\n"
+    await callback.message.edit_text(text, reply_markup=admin_products_list_keyboard())
+
+@dp.callback_query(F.data == "admin_add_product")
+async def admin_add_product_start(callback: types.CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+    await state.set_state(AdminStates.adding_product_name)
+    await callback.message.edit_text(
+        "➕ <b>Добавление нового товара</b>\n\n"
+        "Шаг 1 из 5\n\n"
+        "Введи название товара:",
+        reply_markup=cancel_keyboard()
+    )
+
+@dp.message(AdminStates.adding_product_name)
+async def admin_add_product_name(message: types.Message, state: FSMContext):
+    await state.update_data(product_name=message.text)
+    await state.set_state(AdminStates.adding_product_price)
+    await message.answer(
+        "Шаг 2 из 5\n\n"
+        "Введи цену товара в рублях (только число):",
+        reply_markup=cancel_keyboard()
+    )
+
+@dp.message(AdminStates.adding_product_price)
+async def admin_add_product_price(message: types.Message, state: FSMContext):
+    try:
+        price = int(message.text)
+        await state.update_data(product_price=price)
+        await state.set_state(AdminStates.adding_product_type)
+        await message.answer(
+            "Шаг 3 из 5\n\n"
+            "Введи тип товара (base - базовый, custom - индивидуальный):",
+            reply_markup=cancel_keyboard()
+        )
+    except ValueError:
+        await message.answer("❌ Введи корректное число!")
+
+@dp.message(AdminStates.adding_product_type)
+async def admin_add_product_type(message: types.Message, state: FSMContext):
+    if message.text.lower() not in ['base', 'custom']:
+        await message.answer("❌ Тип должен быть base или custom")
+        return
+    await state.update_data(product_type=message.text.lower())
+    await state.set_state(AdminStates.adding_product_features)
+    await message.answer(
+        "Шаг 4 из 5\n\n"
+        "Введи особенности товара (каждое с новой строки):\n"
+        "Например:\n"
+        "✅ Качество 24/7\n"
+        "✅ Поддержка\n"
+        "✅ Интеграции",
+        reply_markup=cancel_keyboard()
+    )
+
+@dp.message(AdminStates.adding_product_features)
+async def admin_add_product_features(message: types.Message, state: FSMContext):
+    features = message.text.split('\n')
+    await state.update_data(product_features=features)
+    data = await state.get_data()
+    
+    # Генерируем ID для товара
+    product_id = data['product_name'].lower().replace(' ', '_').replace('✅', '').strip()
+    
+    # Создаём новый товар
+    new_product = {
+        "id": product_id,
+        "name": data['product_name'],
+        "price": data['product_price'],
+        "type": data['product_type'],
+        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7",
+        "features": [
+            "💰 ДЕНЬГИ: Работает 24/7",
+            "⚡️ Окупаемость: 1-2 клиента"
+        ],
+        "client_features": data['product_features'],
+        "admin_features": [
+            "✅ Управление услугами",
+            "✅ Статистика"
+        ]
+    }
+    
+    products = get_products()
+    products.append(new_product)
+    save_products(products)
+    
+    await message.answer(
+        f"✅ <b>Товар успешно добавлен!</b>\n\n"
+        f"Название: {data['product_name']}\n"
+        f"Цена: {data['product_price']}₽\n"
+        f"Тип: {data['product_type']}\n"
+        f"ID: {product_id}",
+        reply_markup=admin_menu()
+    )
+    await state.clear()
+
+@dp.callback_query(F.data.startswith("admin_edit_product_"))
+async def admin_edit_product(callback: types.CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    product_id = callback.data.replace("admin_edit_product_", "")
+    products = get_products()
+    product = next((p for p in products if p['id'] == product_id), None)
+    
+    if not product:
+        await callback.answer("❌ Товар не найден")
+        return
+    
+    text = (
+        f"✏️ <b>Редактирование товара</b>\n\n"
+        f"ID: {product['id']}\n"
+        f"Название: {product['name']}\n"
+        f"Цена: {product['price']}₽\n"
+        f"Тип: {product['type']}\n\n"
+        f"<b>Особенности:</b>\n" + "\n".join([f"  {f}" for f in product.get('client_features', [])])
+    )
+    
+    kb = [
+        [InlineKeyboardButton(text="🗑 Удалить", callback_data=f"admin_delete_product_{product['id']}")],
+        [InlineKeyboardButton(text="🔙 К списку", callback_data="admin_products_list")]
+    ]
+    
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+
+@dp.callback_query(F.data.startswith("admin_delete_product_"))
+async def admin_delete_product(callback: types.CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    product_id = callback.data.replace("admin_delete_product_", "")
+    products = get_products()
+    products = [p for p in products if p['id'] != product_id]
+    save_products(products)
+    
+    await callback.answer("✅ Товар удалён")
+    await admin_products_list(callback)
+
+# ---------- УПРАВЛЕНИЕ ЗАКАЗАМИ ----------
 @dp.callback_query(F.data == "admin_orders")
 async def admin_orders(callback: types.CallbackQuery):
     orders = get_orders()
@@ -1196,6 +1389,7 @@ async def admin_stats(callback: types.CallbackQuery):
     clients = get_clients()
     reviews = get_reviews()
     referrals = get_referrals()
+    products = get_products()
     
     total_orders = len(orders)
     completed_orders = len([o for o in orders if o['status'] == 'completed'])
@@ -1209,7 +1403,8 @@ async def admin_stats(callback: types.CallbackQuery):
     
     text = (
         f"📊 <b>Статистика</b>\n\n"
-        f"📦 Всего заказов: {total_orders}\n"
+        f"📦 Всего товаров: {len(products)}\n"
+        f"📋 Всего заказов: {total_orders}\n"
         f"✅ Выполнено: {completed_orders}\n"
         f"❌ Отменено: {cancelled_orders}\n"
         f"💰 Выручка: {total_revenue}₽\n"
