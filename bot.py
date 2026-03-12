@@ -321,9 +321,6 @@ def is_admin(user_id: int) -> bool:
 storage = MemoryStorage()
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher(storage=storage)
-# Регистрируем хэндлеры
-dp.pre_checkout_query.register(pre_checkout_handler)
-dp.message.register(successful_payment_handler, F.successful_payment)
 
 # ============================================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -976,26 +973,34 @@ async def accept_order(callback: types.CallbackQuery):
     await callback.answer("✅ Счёт отправлен клиенту")
     await admin_orders(callback)
 
-# ВАЖНО! Этот обработчик должен быть отдельно и без лишних фильтров
+# ВАЖНО: Эти хэндлеры регистрируются через декораторы, НЕ НУЖНО добавлять register()
 @dp.pre_checkout_query()
 async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
     """Обязательно отвечаем в течение 10 секунд!"""
     try:
-        logger.info(f"Получен pre_checkout_query: {pre_checkout_query.id}")
+        logger.info(f"💰 Получен pre_checkout_query: {pre_checkout_query.id}")
+        logger.info(f"📦 Payload: {pre_checkout_query.invoice_payload}")
+        logger.info(f"💵 Total amount: {pre_checkout_query.total_amount}")
+        
         # Просто подтверждаем - всё ок
         await pre_checkout_query.answer(ok=True)
-        logger.info(f"Ответ на pre_checkout_query отправлен: {pre_checkout_query.id}")
+        logger.info(f"✅ Ответ на pre_checkout_query отправлен: {pre_checkout_query.id}")
     except Exception as e:
-        logger.error(f"Ошибка в pre_checkout_handler: {e}")
+        logger.error(f"❌ Ошибка в pre_checkout_handler: {e}")
         # В случае ошибки - отклоняем
-        await pre_checkout_query.answer(ok=False, error_message="Техническая ошибка, попробуйте позже")
+        try:
+            await pre_checkout_query.answer(ok=False, error_message="Техническая ошибка, попробуйте позже")
+        except:
+            pass
 
 @dp.message(F.successful_payment)
 async def successful_payment_handler(message: types.Message):
     payment_info = message.successful_payment
     order_id = payment_info.invoice_payload
     
-    logger.info(f"Получен successful_payment для заказа {order_id}")
+    logger.info(f"💰 Получен successful_payment для заказа {order_id}")
+    logger.info(f"💳 Payment ID: {payment_info.telegram_payment_charge_id}")
+    logger.info(f"💵 Amount: {payment_info.total_amount / 100} {payment_info.currency}")
     
     orders = get_orders()
     for order in orders:
@@ -1492,6 +1497,8 @@ async def broadcast_confirm(callback: types.CallbackQuery, state: FSMContext):
 # ============================================
 async def on_startup():
     logger.info("🚀 Бот-магазин запускается...")
+    
+    # Устанавливаем вебхук
     webhook_url = f"{RENDER_EXTERNAL_URL}/webhook/{TOKEN}"
     await bot.set_webhook(webhook_url)
     logger.info(f"✅ Вебхук установлен на {webhook_url}")
