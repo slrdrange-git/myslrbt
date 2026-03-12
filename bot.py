@@ -1498,9 +1498,11 @@ async def broadcast_confirm(callback: types.CallbackQuery, state: FSMContext):
 async def on_startup():
     logger.info("🚀 Бот-магазин запускается...")
     
-    # Устанавливаем вебхук
     webhook_url = f"{RENDER_EXTERNAL_URL}/webhook/{TOKEN}"
-    await bot.set_webhook(webhook_url)
+    await bot.set_webhook(
+        url=webhook_url,
+        allowed_updates=['message', 'callback_query', 'pre_checkout_query']
+    )
     logger.info(f"✅ Вебхук установлен на {webhook_url}")
 
 def run_bot():
