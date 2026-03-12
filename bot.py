@@ -23,7 +23,7 @@ from aiogram.client.default import DefaultBotProperties
 # НАСТРОЙКИ
 # ============================================
 TOKEN = os.environ.get('BOT_TOKEN')
-PAYMENT_TOKEN = os.environ.get('PAYMENT_TOKEN')  # Токен от PayMaster из BotFather
+PAYMENT_TOKEN = os.environ.get('PAYMENT_TOKEN')
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
 RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
@@ -88,7 +88,6 @@ def save_referrals(referrals):
 def get_products():
     products = load_json('products.json')
     if not products:
-        # Если файла нет, создаём с дефолтными товарами
         products = [
             {
                 "id": "tattoo_bot",
@@ -297,7 +296,6 @@ class OrderStates(StatesGroup):
 class ReviewStates(StatesGroup):
     waiting_rating = State()
     waiting_text = State()
-    waiting_contact = State()
     waiting_photo = State()
 
 class AdminStates(StatesGroup):
@@ -491,13 +489,22 @@ async def get_webhook_info():
     webhook_info = await bot.get_webhook_info()
     return {
         "bot": {"id": bot_info.id, "username": bot_info.username},
-        "webhook": {"url": webhook_info.url}
+        "webhook": {
+            "url": webhook_info.url,
+            "allowed_updates": webhook_info.allowed_updates
+        }
     }
 
 @app.route('/set_webhook', methods=['GET'])
 def set_webhook_route():
     webhook_url = f"{RENDER_EXTERNAL_URL}/webhook/{TOKEN}"
-    asyncio.run_coroutine_threadsafe(bot.set_webhook(webhook_url), loop)
+    asyncio.run_coroutine_threadsafe(
+        bot.set_webhook(
+            url=webhook_url,
+            allowed_updates=['message', 'callback_query', 'pre_checkout_query']
+        ), 
+        loop
+    )
     return f"✅ Webhook установлен на {webhook_url}"
 
 # ============================================
@@ -507,7 +514,7 @@ def set_webhook_route():
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     user = message.from_user
-    logger.info(f"Пользователь {user.full_name} запустил бота")
+    logger.info(f"Пользователь {user.full_name} (@{user.username}) запустил бота")
     
     args = message.text.split()
     referrer_id = None
@@ -523,7 +530,8 @@ async def cmd_start(message: types.Message):
     if not client:
         clients.append({
             "user_id": user.id,
-            "username": user.username or user.full_name,
+            "full_name": user.full_name,
+            "username": user.username,
             "first_seen": datetime.now().isoformat(),
             "orders": [],
             "reviews": [],
@@ -692,10 +700,11 @@ async def show_reviews(callback: types.CallbackQuery):
     text = "⭐️ <b>Отзывы клиентов:</b>\n\n"
     for r in approved[-10:]:
         stars = "⭐️" * r['rating']
-        text += f"👤 {r['username']} {stars}\n"
+        # Теперь имя берется автоматически из данных
+        text += f"👤 {r['full_name']} {stars}\n"
         text += f"📝 {r['text']}\n"
-        if r.get('contact'):
-            text += f"📞 {r['contact']}\n"
+        if r.get('username'):
+            text += f"📞 @{r['username']}\n"
         text += f"🕐 {r['created_at'][:10]}\n\n"
     
     await callback.message.edit_text(text, reply_markup=reviews_keyboard())
@@ -735,15 +744,6 @@ async def process_text(message: types.Message, state: FSMContext):
         return
     
     await state.update_data(review_text=message.text)
-    await state.set_state(ReviewStates.waiting_contact)
-    await message.answer(
-        "📞 Оставь свой контакт для проверки (телефон или @username):",
-        reply_markup=cancel_keyboard()
-    )
-
-@dp.message(ReviewStates.waiting_contact)
-async def process_contact(message: types.Message, state: FSMContext):
-    await state.update_data(contact=message.text)
     await state.set_state(ReviewStates.waiting_photo)
     await message.answer(
         "📸 Добавь фото к отзыву (или пропусти):",
@@ -765,10 +765,10 @@ async def process_photo(message: types.Message, state: FSMContext):
     new_review = {
         "id": len(reviews) + 1,
         "user_id": message.from_user.id,
-        "username": message.from_user.username or message.from_user.full_name,
+        "full_name": message.from_user.full_name,  # Сохраняем полное имя
+        "username": message.from_user.username,     # Сохраняем юзернейм
         "rating": data['rating'],
         "text": data['review_text'],
-        "contact": data.get('contact', ''),
         "has_photo": True,
         "approved": False,
         "created_at": datetime.now().isoformat()
@@ -778,10 +778,10 @@ async def process_photo(message: types.Message, state: FSMContext):
     
     await notify_admin(
         f"⭐️ <b>Новый отзыв на модерацию!</b>\n\n"
-        f"👤 Пользователь: @{message.from_user.username or message.from_user.full_name}\n"
+        f"👤 Имя: {message.from_user.full_name}\n"
+        f"📞 @{message.from_user.username or 'нет'}\n"
         f"⭐️ Оценка: {data['rating']}\n"
         f"📝 Текст: {data['review_text']}\n"
-        f"📞 Контакт: {data.get('contact', 'не указан')}\n"
         f"📸 С фото"
     )
     
@@ -799,10 +799,10 @@ async def skip_photo(callback: types.CallbackQuery, state: FSMContext):
     new_review = {
         "id": len(reviews) + 1,
         "user_id": callback.from_user.id,
-        "username": callback.from_user.username or callback.from_user.full_name,
+        "full_name": callback.from_user.full_name,
+        "username": callback.from_user.username,
         "rating": data['rating'],
         "text": data['review_text'],
-        "contact": data.get('contact', ''),
         "has_photo": False,
         "approved": False,
         "created_at": datetime.now().isoformat()
@@ -812,10 +812,10 @@ async def skip_photo(callback: types.CallbackQuery, state: FSMContext):
     
     await notify_admin(
         f"⭐️ <b>Новый отзыв на модерацию!</b>\n\n"
-        f"👤 Пользователь: @{callback.from_user.username or callback.from_user.full_name}\n"
+        f"👤 Имя: {callback.from_user.full_name}\n"
+        f"📞 @{callback.from_user.username or 'нет'}\n"
         f"⭐️ Оценка: {data['rating']}\n"
         f"📝 Текст: {data['review_text']}\n"
-        f"📞 Контакт: {data.get('contact', 'не указан')}\n"
         f"📸 Без фото"
     )
     
@@ -843,12 +843,14 @@ async def my_orders(callback: types.CallbackQuery):
         status_emoji = {
             'new': '🆕',
             'payment': '💳',
+            'in_progress': '⚙️',
             'completed': '✅',
             'cancelled': '❌'
         }.get(o['status'], '❓')
         status_text = {
             'new': 'Новый, ожидает подтверждения',
             'payment': 'Ожидает оплаты',
+            'in_progress': 'Выполняется',
             'completed': 'Выполнен',
             'cancelled': 'Отменён'
         }.get(o['status'], o['status'])
@@ -907,6 +909,7 @@ async def process_details(message: types.Message, state: FSMContext):
         "id": order_id,
         "user_id": message.from_user.id,
         "username": message.from_user.username or message.from_user.full_name,
+        "full_name": message.from_user.full_name,
         "product_id": data['product_id'],
         "product_name": data['product_name'],
         "price": data['product_price'],
@@ -920,7 +923,8 @@ async def process_details(message: types.Message, state: FSMContext):
     
     await notify_admin(
         f"🆕 <b>НОВЫЙ ЗАКАЗ #{order_id}</b>\n\n"
-        f"👤 Клиент: @{message.from_user.username or message.from_user.full_name}\n"
+        f"👤 Клиент: {message.from_user.full_name}\n"
+        f"📞 @{message.from_user.username or 'нет'}\n"
         f"💎 Товар: {data['product_name']}\n"
         f"💰 Цена: {data['product_price']}₽\n"
         f"📞 Контакт: {data['contact']}\n"
@@ -953,8 +957,7 @@ async def accept_order(callback: types.CallbackQuery):
     
     save_orders(orders)
     
-    # Создаём счёт для оплаты
-    prices = [LabeledPrice(label=order['product_name'], amount=order['price'] * 100)]  # В копейках
+    prices = [LabeledPrice(label=order['product_name'], amount=order['price'] * 100)]
     
     await bot.send_invoice(
         chat_id=order['user_id'],
@@ -973,21 +976,14 @@ async def accept_order(callback: types.CallbackQuery):
     await callback.answer("✅ Счёт отправлен клиенту")
     await admin_orders(callback)
 
-# ВАЖНО: Эти хэндлеры регистрируются через декораторы, НЕ НУЖНО добавлять register()
 @dp.pre_checkout_query()
 async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
-    """Обязательно отвечаем в течение 10 секунд!"""
     try:
         logger.info(f"💰 Получен pre_checkout_query: {pre_checkout_query.id}")
-        logger.info(f"📦 Payload: {pre_checkout_query.invoice_payload}")
-        logger.info(f"💵 Total amount: {pre_checkout_query.total_amount}")
-        
-        # Просто подтверждаем - всё ок
         await pre_checkout_query.answer(ok=True)
         logger.info(f"✅ Ответ на pre_checkout_query отправлен: {pre_checkout_query.id}")
     except Exception as e:
         logger.error(f"❌ Ошибка в pre_checkout_handler: {e}")
-        # В случае ошибки - отклоняем
         try:
             await pre_checkout_query.answer(ok=False, error_message="Техническая ошибка, попробуйте позже")
         except:
@@ -999,31 +995,30 @@ async def successful_payment_handler(message: types.Message):
     order_id = payment_info.invoice_payload
     
     logger.info(f"💰 Получен successful_payment для заказа {order_id}")
-    logger.info(f"💳 Payment ID: {payment_info.telegram_payment_charge_id}")
-    logger.info(f"💵 Amount: {payment_info.total_amount / 100} {payment_info.currency}")
     
     orders = get_orders()
     for order in orders:
         if order['id'] == order_id:
-            order['status'] = 'completed'
+            # Меняем статус на "в работе", а не "выполнен"
+            order['status'] = 'in_progress'
             order['paid_at'] = datetime.now().isoformat()
             order['payment_id'] = payment_info.telegram_payment_charge_id
             save_orders(orders)
             
-            # Уведомляем клиента
             await message.answer(
                 f"✅ <b>Заказ #{order_id} оплачен!</b>\n\n"
                 f"Спасибо за оплату! Я приступаю к работе над твоим ботом.\n\n"
-                f"⭐️ <b>Важно:</b> Когда получишь готового бота, не забудь оставить отзыв!\n"
-                f"👉 Это поможет другим клиентам сделать правильный выбор."
+                f"⚙️ <b>Статус:</b> Заказ в работе\n\n"
+                f"Когда бот будет готов, я свяжусь с тобой для передачи."
             )
             
-            # Уведомляем админа
             await notify_admin(
                 f"💰 <b>Поступила оплата!</b>\n\n"
                 f"Заказ #{order_id}\n"
                 f"Сумма: {payment_info.total_amount / 100}₽\n"
-                f"Клиент: @{message.from_user.username or message.from_user.full_name}"
+                f"Клиент: {message.from_user.full_name}\n"
+                f"📞 @{message.from_user.username or 'нет'}\n\n"
+                f"⚙️ Статус изменён на 'в работе'"
             )
             break
 
@@ -1135,10 +1130,8 @@ async def admin_add_product_features(message: types.Message, state: FSMContext):
     await state.update_data(product_features=features)
     data = await state.get_data()
     
-    # Генерируем ID для товара
     product_id = data['product_name'].lower().replace(' ', '_').replace('✅', '').strip()
     
-    # Создаём новый товар
     new_product = {
         "id": product_id,
         "name": data['product_name'],
@@ -1223,24 +1216,26 @@ async def admin_orders(callback: types.CallbackQuery):
         status_emoji = {
             'new': '🆕',
             'payment': '💳',
+            'in_progress': '⚙️',
             'completed': '✅',
             'cancelled': '❌'
         }.get(o['status'], '❓')
         status_text = {
             'new': 'Новый',
             'payment': 'Ожидает оплаты',
+            'in_progress': 'В работе',
             'completed': 'Выполнен',
             'cancelled': 'Отменён'
         }.get(o['status'], o['status'])
         
         text += f"{status_emoji} <b>#{o['id']}</b>\n"
-        text += f"   👤 @{o['username']}\n"
+        text += f"   👤 {o['full_name']}\n"
+        text += f"   📞 @{o['username'] or 'нет'}\n"
         text += f"   💎 {o['product_name']}\n"
         text += f"   💰 {o['price']}₽\n"
         text += f"   📞 {o['contact']}\n"
         text += f"   📊 {status_text}\n\n"
     
-    # Кнопки действий
     kb = []
     for o in orders[-10:]:
         if o['status'] == 'new':
@@ -1248,7 +1243,12 @@ async def admin_orders(callback: types.CallbackQuery):
                 text=f"✅ Принять #{o['id']}",
                 callback_data=f"accept_{o['id']}"
             )])
-        if o['status'] in ['new', 'payment']:
+        if o['status'] == 'in_progress':
+            kb.append([InlineKeyboardButton(
+                text=f"✅ Выполнено #{o['id']}",
+                callback_data=f"complete_{o['id']}"
+            )])
+        if o['status'] in ['new', 'payment', 'in_progress']:
             kb.append([InlineKeyboardButton(
                 text=f"❌ Отменить #{o['id']}",
                 callback_data=f"cancel_order_{o['id']}"
@@ -1256,6 +1256,32 @@ async def admin_orders(callback: types.CallbackQuery):
     kb.append([InlineKeyboardButton(text="🔙 В админку", callback_data="admin")])
     
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+
+@dp.callback_query(F.data.startswith("complete_"))
+async def complete_order(callback: types.CallbackQuery):
+    order_id = callback.data.replace("complete_", "")
+    orders = get_orders()
+    
+    order = None
+    for o in orders:
+        if o['id'] == order_id:
+            o['status'] = 'completed'
+            order = o
+            break
+    
+    save_orders(orders)
+    
+    await notify_user(
+        order['user_id'],
+        f"✅ <b>Заказ #{order_id} выполнен!</b>\n\n"
+        f"Твой бот готов! 🚀\n\n"
+        f"⭐️ <b>Пожалуйста, оставь отзыв о работе</b> — это очень важно для меня!\n"
+        f"👉 Нажми «⭐️ Отзывы» в главном меню и поделись впечатлениями.\n\n"
+        f"Спасибо, что выбрал меня! 🙌"
+    )
+    
+    await callback.answer("✅ Заказ отмечен как выполненный")
+    await admin_orders(callback)
 
 @dp.callback_query(F.data.startswith("cancel_order_"))
 async def cancel_order_admin(callback: types.CallbackQuery):
@@ -1283,6 +1309,7 @@ async def cancel_order_admin(callback: types.CallbackQuery):
     await callback.answer("❌ Заказ отменён")
     await admin_orders(callback)
 
+# ---------- МОДЕРАЦИЯ ОТЗЫВОВ ----------
 @dp.callback_query(F.data == "admin_reviews")
 async def admin_reviews(callback: types.CallbackQuery):
     reviews = get_reviews()
@@ -1297,9 +1324,9 @@ async def admin_reviews(callback: types.CallbackQuery):
     
     text = "⭐️ <b>Отзывы на модерации</b>\n\n"
     for r in pending[:5]:
-        text += f"👤 {r['username']} (⭐️{'⭐️' * r['rating']})\n"
+        text += f"👤 {r['full_name']} (⭐️{'⭐️' * r['rating']})\n"
         text += f"📝 {r['text'][:100]}...\n"
-        text += f"📞 {r.get('contact', 'нет')}\n"
+        text += f"📞 @{r['username'] or 'нет'}\n"
         text += f"📸 {'✅' if r.get('has_photo') else '❌'}\n"
         text += f"🆔 {r['id']}\n\n"
     
@@ -1353,7 +1380,8 @@ async def admin_clients(callback: types.CallbackQuery):
         completed = len([o for o in user_orders if o['status'] == 'completed'])
         invited = count_referrals(c['user_id'])
         
-        text += f"👤 @{c['username']}\n"
+        text += f"👤 {c['full_name']}\n"
+        text += f"   📞 @{c['username'] or 'нет'}\n"
         text += f"   🆔 {c['user_id']}\n"
         text += f"   📦 Заказов: {len(user_orders)} (✅{completed})\n"
         text += f"   👥 Приглашено друзей: {invited}\n"
@@ -1370,6 +1398,9 @@ async def admin_stats(callback: types.CallbackQuery):
     products = get_products()
     
     total_orders = len(orders)
+    new_orders = len([o for o in orders if o['status'] == 'new'])
+    payment_orders = len([o for o in orders if o['status'] == 'payment'])
+    in_progress_orders = len([o for o in orders if o['status'] == 'in_progress'])
     completed_orders = len([o for o in orders if o['status'] == 'completed'])
     cancelled_orders = len([o for o in orders if o['status'] == 'cancelled'])
     total_revenue = sum(o['price'] for o in orders if o['status'] == 'completed')
@@ -1383,6 +1414,9 @@ async def admin_stats(callback: types.CallbackQuery):
         f"📊 <b>Статистика</b>\n\n"
         f"📦 Всего товаров: {len(products)}\n"
         f"📋 Всего заказов: {total_orders}\n"
+        f"🆕 Новых: {new_orders}\n"
+        f"💳 Ожидают оплаты: {payment_orders}\n"
+        f"⚙️ В работе: {in_progress_orders}\n"
         f"✅ Выполнено: {completed_orders}\n"
         f"❌ Отменено: {cancelled_orders}\n"
         f"💰 Выручка: {total_revenue}₽\n"
