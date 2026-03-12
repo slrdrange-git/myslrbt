@@ -321,6 +321,9 @@ def is_admin(user_id: int) -> bool:
 storage = MemoryStorage()
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher(storage=storage)
+# Регистрируем хэндлеры
+dp.pre_checkout_query.register(pre_checkout_handler)
+dp.message.register(successful_payment_handler, F.successful_payment)
 
 # ============================================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
