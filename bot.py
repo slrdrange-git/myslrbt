@@ -905,8 +905,8 @@ async def process_details(message: types.Message, state: FSMContext):
         f"✅ <b>Заказ #{order_id} создан!</b>\n\n"
         f"💎 Товар: {data['product_name']}\n"
         f"💰 Сумма: {data['product_price']}₽\n\n"
-        f"Я свяжусь с тобой в ближайшее время для уточнения деталей.\n\n"
-        f"Спасибо за доверие! 🙌",
+        f"Я свяжусь с вами в ближайшее время для уточнения деталей.\n\n"
+        f"Спасибо за доверие, уважаемый клиент! 🙌",
         reply_markup=main_menu()
     )
     await state.clear()
