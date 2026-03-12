@@ -2,3 +2,4 @@ aiogram
 Flask
 gunicorn
 aiohttp
+python-dotenv
