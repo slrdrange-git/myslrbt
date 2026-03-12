@@ -26,7 +26,7 @@ TOKEN = os.environ.get('BOT_TOKEN')
 PAYMENT_TOKEN = os.environ.get('PAYMENT_TOKEN')  # Токен от PayMaster из BotFather
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
 
 # Логи
 logging.basicConfig(level=logging.INFO)
@@ -973,14 +973,26 @@ async def accept_order(callback: types.CallbackQuery):
     await callback.answer("✅ Счёт отправлен клиенту")
     await admin_orders(callback)
 
+# ВАЖНО! Этот обработчик должен быть отдельно и без лишних фильтров
 @dp.pre_checkout_query()
 async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
-    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+    """Обязательно отвечаем в течение 10 секунд!"""
+    try:
+        logger.info(f"Получен pre_checkout_query: {pre_checkout_query.id}")
+        # Просто подтверждаем - всё ок
+        await pre_checkout_query.answer(ok=True)
+        logger.info(f"Ответ на pre_checkout_query отправлен: {pre_checkout_query.id}")
+    except Exception as e:
+        logger.error(f"Ошибка в pre_checkout_handler: {e}")
+        # В случае ошибки - отклоняем
+        await pre_checkout_query.answer(ok=False, error_message="Техническая ошибка, попробуйте позже")
 
 @dp.message(F.successful_payment)
 async def successful_payment_handler(message: types.Message):
     payment_info = message.successful_payment
     order_id = payment_info.invoice_payload
+    
+    logger.info(f"Получен successful_payment для заказа {order_id}")
     
     orders = get_orders()
     for order in orders:
