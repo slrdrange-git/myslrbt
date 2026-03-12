@@ -23,7 +23,7 @@ from aiogram.client.default import DefaultBotProperties
 # НАСТРОЙКИ
 # ============================================
 TOKEN = os.environ.get('BOT_TOKEN')
-ADMIN_ID = 775020198  # ← ТВОЙ ID
+ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
 RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
 
@@ -84,10 +84,11 @@ def save_referrals(referrals):
     save_json('referrals.json', referrals)
 
 # === Демо-проект ===
+DEMO_BOT_LINK = "https://t.me/x404x_test_bot"
 DEMO_PROJECT = {
     "name": "🤖 Демо-бот для записи",
     "description": "Посмотри, как работает мой бот в реальном времени!",
-    "link": "https://t.me/your_demo_bot",  # ← ССЫЛКА НА ТВОЙ ДЕМО-БОТ
+    "link": DEMO_BOT_LINK,
     "features": [
         "✅ Запись на услуги",
         "✅ Календарь на месяц",
@@ -98,16 +99,167 @@ DEMO_PROJECT = {
 }
 
 # === Программа лояльности ===
-LOYALTY_THRESHOLD = 5  # Количество заказов для бонуса
+LOYALTY_THRESHOLD = 5  # Количество приглашённых друзей для бонуса
 LOYALTY_BONUS = 250     # Сумма бонуса в рублях
 
+# === Цены ===
+BASE_PRICE = 1999
+CUSTOM_PRICE = 2249
+
 # ============================================
-# ГЕНЕРАЦИЯ ПРОМОКОДА
+# ТОВАРЫ (БОТЫ)
 # ============================================
-def generate_promo_code(user_id, length=8):
-    letters = string.ascii_uppercase + string.digits
-    code = ''.join(random.choice(letters) for i in range(length))
-    return f"LOYALTY{code}"
+PRODUCTS = [
+    {
+        "id": "tattoo_bot",
+        "name": "🤖 Бот для тату-мастера",
+        "price": BASE_PRICE,
+        "type": "base",
+        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+        "features": [
+            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
+            "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
+            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+            "📈 РОСТ: Отзывы + промокоды = новые клиенты"
+        ],
+        "client_features": [
+            "✅ Услуги с ценами — без 'прайс в личку'",
+            "✅ Запись за 30 секунд",
+            "✅ История записей и отмена",
+            "✅ Отзывы с фото + промокоды",
+            "✅ Напоминание за 24 часа",
+            "✅ Инфо с контактами"
+        ],
+        "admin_features": [
+            "✅ Управление услугами",
+            "✅ Все записи с фильтрацией",
+            "✅ Подтверждение/отмена в 1 клик",
+            "✅ Модерация отзывов",
+            "✅ Статистика по выручке",
+            "✅ Рассылка клиентам",
+            "✅ Уведомления о каждой записи"
+        ]
+    },
+    {
+        "id": "manicure_bot",
+        "name": "💅 Бот для маникюра",
+        "price": BASE_PRICE,
+        "type": "base",
+        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+        "features": [
+            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
+            "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
+            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+            "📈 РОСТ: Отзывы + промокоды = новые клиенты"
+        ],
+        "client_features": [
+            "✅ Услуги с ценами",
+            "✅ Запись за 30 секунд",
+            "✅ История записей",
+            "✅ Отзывы с фото",
+            "✅ Напоминание за 24 часа"
+        ],
+        "admin_features": [
+            "✅ Управление услугами",
+            "✅ Все записи",
+            "✅ Подтверждение/отмена",
+            "✅ Модерация отзывов",
+            "✅ Статистика",
+            "✅ Рассылка",
+            "✅ Уведомления"
+        ]
+    },
+    {
+        "id": "barber_bot",
+        "name": "✂️ Бот для барбера",
+        "price": BASE_PRICE,
+        "type": "base",
+        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+        "features": [
+            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
+            "⚡️ Окупаемость: 1-2 клиента — окупился",
+            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+            "📈 РОСТ: Отзывы + промокоды"
+        ],
+        "client_features": [
+            "✅ Услуги с ценами",
+            "✅ Запись за 30 секунд",
+            "✅ История записей",
+            "✅ Отзывы с фото",
+            "✅ Напоминание за 24 часа"
+        ],
+        "admin_features": [
+            "✅ Управление услугами",
+            "✅ Все записи",
+            "✅ Подтверждение/отмена",
+            "✅ Модерация отзывов",
+            "✅ Статистика",
+            "✅ Уведомления"
+        ]
+    },
+    {
+        "id": "custom_bot",
+        "name": "⚡️ Индивидуальный бот",
+        "price": CUSTOM_PRICE,
+        "type": "custom",
+        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+        "features": [
+            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
+            "⚡️ Окупаемость: 1-2 клиента — окупился",
+            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+            "📈 РОСТ: Отзывы + промокоды"
+        ],
+        "client_features": [
+            "✅ Любой функционал под ваш бизнес",
+            "✅ Индивидуальный дизайн",
+            "✅ Интеграции с CRM",
+            "✅ Поддержка 2 месяца"
+        ],
+        "admin_features": [
+            "✅ Полное администрирование",
+            "✅ Статистика",
+            "✅ Рассылка",
+            "✅ Уведомления"
+        ]
+    },
+    {
+        "id": "complex_bot",
+        "name": "🚀 Проект повышенной сложности",
+        "price": CUSTOM_PRICE,
+        "type": "custom",
+        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
+        "features": [
+            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
+            "⚡️ Окупаемость: 1-2 клиента — окупился",
+            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
+            "📈 РОСТ: Отзывы + промокоды"
+        ],
+        "client_features": [
+            "✅ Сложная логика",
+            "✅ Множество интеграций",
+            "✅ Кастомные решения",
+            "✅ Поддержка 3 месяца"
+        ],
+        "admin_features": [
+            "✅ Полное администрирование",
+            "✅ Расширенная статистика",
+            "✅ Приоритетная поддержка"
+        ]
+    }
+]
+
+# ============================================
+# ГЕНЕРАЦИЯ РЕФЕРАЛЬНОЙ ССЫЛКИ
+# ============================================
+def generate_referral_code(user_id):
+    """Генерирует уникальный реферальный код"""
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    return f"ref_{user_id}_{code}"
+
+def get_referral_link(user_id):
+    """Возвращает реферальную ссылку для пользователя"""
+    code = generate_referral_code(user_id)
+    return f"https://t.me/{(await bot.get_me()).username}?start={code}"
 
 # ============================================
 # РАСЧЁТ РЕЙТИНГА
@@ -122,6 +274,14 @@ def calculate_rating():
     total = sum(r['rating'] for r in approved)
     avg = total / len(approved)
     return round(avg, 1)
+
+# ============================================
+# ПОДСЧЁТ ПРИГЛАШЁННЫХ ДРУЗЕЙ
+# ============================================
+def count_referrals(user_id):
+    """Считает количество приглашённых друзей, которые сделали заказ"""
+    referrals = get_referrals()
+    return len([r for r in referrals if r['referrer_id'] == user_id and r.get('order_completed', False)])
 
 # ============================================
 # СОСТОЯНИЯ
@@ -151,120 +311,6 @@ def is_admin(user_id: int) -> bool:
     return user_id == ADMIN_ID
 
 # ============================================
-# ТОВАРЫ (БОТЫ)
-# ============================================
-PRODUCTS = [
-    {
-        "id": "tattoo_bot",
-        "name": "🤖 Бот для тату-мастера",
-        "price": 25000,
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
-            "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды = новые клиенты"
-        ],
-        "client_features": [
-            "✅ Услуги с ценами — без 'прайс в личку'",
-            "✅ Запись за 30 секунд",
-            "✅ История записей и отмена",
-            "✅ Отзывы с фото + промокоды",
-            "✅ Напоминание за 24 часа",
-            "✅ Инфо с контактами"
-        ],
-        "admin_features": [
-            "✅ Управление услугами",
-            "✅ Все записи с фильтрацией",
-            "✅ Подтверждение/отмена в 1 клик",
-            "✅ Модерация отзывов",
-            "✅ Статистика по выручке",
-            "✅ Рассылка клиентам",
-            "✅ Уведомления о каждой записи"
-        ]
-    },
-    {
-        "id": "manicure_bot",
-        "name": "💅 Бот для маникюра",
-        "price": 20000,
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки, пока вы спите",
-            "⚡️ Окупаемость: 1-2 клиента — и бот ваш окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды = новые клиенты"
-        ],
-        "client_features": [
-            "✅ Услуги с ценами",
-            "✅ Запись за 30 секунд",
-            "✅ История записей",
-            "✅ Отзывы с фото",
-            "✅ Напоминание за 24 часа"
-        ],
-        "admin_features": [
-            "✅ Управление услугами",
-            "✅ Все записи",
-            "✅ Подтверждение/отмена",
-            "✅ Модерация отзывов",
-            "✅ Статистика",
-            "✅ Рассылка",
-            "✅ Уведомления"
-        ]
-    },
-    {
-        "id": "barber_bot",
-        "name": "✂️ Бот для барбера",
-        "price": 20000,
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
-            "⚡️ Окупаемость: 1-2 клиента — окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды"
-        ],
-        "client_features": [
-            "✅ Услуги с ценами",
-            "✅ Запись за 30 секунд",
-            "✅ История записей",
-            "✅ Отзывы с фото",
-            "✅ Напоминание за 24 часа"
-        ],
-        "admin_features": [
-            "✅ Управление услугами",
-            "✅ Все записи",
-            "✅ Подтверждение/отмена",
-            "✅ Модерация отзывов",
-            "✅ Статистика",
-            "✅ Уведомления"
-        ]
-    },
-    {
-        "id": "custom_bot",
-        "name": "⚡️ Индивидуальный бот",
-        "price": 35000,
-        "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
-        "features": [
-            "💰 ДЕНЬГИ: Работает 24/7, принимает заявки",
-            "⚡️ Окупаемость: 1-2 клиента — окупился",
-            "⏰ ВРЕМЯ: Вы не отвечаете на тупые вопросы",
-            "📈 РОСТ: Отзывы + промокоды"
-        ],
-        "client_features": [
-            "✅ Любой функционал под ваш бизнес",
-            "✅ Индивидуальный дизайн",
-            "✅ Интеграции с CRM",
-            "✅ Поддержка 2 месяца"
-        ],
-        "admin_features": [
-            "✅ Полное администрирование",
-            "✅ Статистика",
-            "✅ Рассылка",
-            "✅ Уведомления"
-        ]
-    }
-]
-
-# ============================================
 # ИНИЦИАЛИЗАЦИЯ БОТА
 # ============================================
 storage = MemoryStorage()
@@ -291,19 +337,6 @@ async def notify_user(user_id: int, message: str):
 def generate_order_id():
     return str(uuid.uuid4())[:8].upper()
 
-def check_loyalty(user_id):
-    """Проверяет количество заказов и начисляет бонус"""
-    orders = get_orders()
-    completed = [o for o in orders if o['user_id'] == user_id and o['status'] == 'completed']
-    
-    if len(completed) >= LOYALTY_THRESHOLD:
-        referrals = get_referrals()
-        # Проверяем, получал ли уже бонус
-        existing = [r for r in referrals if r['user_id'] == user_id and r['type'] == 'loyalty']
-        if not existing:
-            return True
-    return False
-
 # ============================================
 # КЛАВИАТУРЫ
 # ============================================
@@ -314,7 +347,7 @@ def main_menu():
         [InlineKeyboardButton(text="⭐️ Отзывы", callback_data="reviews")],
         [InlineKeyboardButton(text="👨‍💻 О разработчике", callback_data="about")],
         [InlineKeyboardButton(text="📋 Мои заказы", callback_data="my_orders")],
-        [InlineKeyboardButton(text="🎁 Программа лояльности", callback_data="loyalty")]
+        [InlineKeyboardButton(text="🎁 Пригласить друзей", callback_data="referral")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
@@ -337,7 +370,7 @@ def product_detail_keyboard(product_id):
 
 def demo_keyboard():
     kb = [
-        [InlineKeyboardButton(text="🎮 Посмотреть демо", url=DEMO_PROJECT['link'])],
+        [InlineKeyboardButton(text="🎮 Посмотреть демо", url=DEMO_BOT_LINK)],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
@@ -378,7 +411,7 @@ def admin_menu():
         [InlineKeyboardButton(text="💰 Статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="🎁 Бонусы лояльности", callback_data="admin_loyalty")],
-        [InlineKeyboardButton(text="🔙 Выход", callback_data="back")]
+        [InlineKeyboardButton(text="🔙 Выход", callback_data="exit_admin")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
@@ -397,7 +430,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 def home():
-    return "Бот-продавец работает! 🤖"
+    return "Бот-магазин работает! 🤖"
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -452,24 +485,51 @@ async def cmd_start(message: types.Message):
     user = message.from_user
     logger.info(f"Пользователь {user.full_name} запустил бота")
     
+    # Проверяем, пришёл ли пользователь по реферальной ссылке
+    args = message.text.split()
+    referrer_id = None
+    if len(args) > 1 and args[1].startswith('ref_'):
+        try:
+            referrer_id = int(args[1].split('_')[1])
+            logger.info(f"Пользователь пришёл по реферальной ссылке от {referrer_id}")
+        except:
+            pass
+    
     # Сохраняем клиента
     clients = get_clients()
-    if not any(c['user_id'] == user.id for c in clients):
+    client = next((c for c in clients if c['user_id'] == user.id), None)
+    
+    if not client:
         clients.append({
             "user_id": user.id,
             "username": user.username or user.full_name,
             "first_seen": datetime.now().isoformat(),
             "orders": [],
-            "reviews": []
+            "reviews": [],
+            "referred_by": referrer_id,  # Кто пригласил
+            "referrals": []  # Кого пригласил
         })
         save_clients(clients)
+        
+        # Если пришёл по рефералке, сохраняем связь
+        if referrer_id:
+            referrals = get_referrals()
+            referrals.append({
+                "referrer_id": referrer_id,
+                "referred_id": user.id,
+                "date": datetime.now().isoformat(),
+                "order_completed": False
+            })
+            save_referrals(referrals)
     
     rating = calculate_rating()
+    reviews = get_reviews()
+    approved_reviews = len([r for r in reviews if r.get('approved', False)])
     
     welcome_text = (
         f"🔥 <b>Привет, {user.first_name}!</b>\n\n"
         f"👨‍💻 <b>Разработчик:</b> @x40vef4yX\n"
-        f"⭐️ <b>Рейтинг:</b> {rating}/5.0 (на основе отзывов)\n\n"
+        f"⭐️ <b>Рейтинг:</b> {rating}/5.0 (на основе {approved_reviews} отзывов)\n\n"
         f"Я создаю <b>Telegram-ботов</b>, которые реально приносят деньги!\n\n"
         f"👇 <b>Выбери действие:</b>"
     )
@@ -480,8 +540,10 @@ async def cmd_start(message: types.Message):
 async def back_to_main(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
     rating = calculate_rating()
+    reviews = get_reviews()
+    approved_reviews = len([r for r in reviews if r.get('approved', False)])
     await callback.message.edit_text(
-        f"🔥 <b>Главное меню</b>\n\n⭐️ Рейтинг: {rating}/5.0",
+        f"🔥 <b>Главное меню</b>\n\n⭐️ Рейтинг: {rating}/5.0 (на основе {approved_reviews} отзывов)",
         reply_markup=main_menu()
     )
 
@@ -495,7 +557,12 @@ async def cancel_action(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "catalog")
 async def catalog(callback: types.CallbackQuery):
-    text = "🛍 <b>Каталог ботов</b>\n\nВыбери готовое решение:"
+    text = (
+        "🛍 <b>Каталог ботов</b>\n\n"
+        f"💰 Все базовые проекты: {BASE_PRICE}₽\n"
+        f"🚀 Индивидуальные и сложные: {CUSTOM_PRICE}₽\n\n"
+        "Выбери готовое решение:"
+    )
     await callback.message.edit_text(text, reply_markup=products_keyboard())
 
 @dp.callback_query(F.data.startswith("prod_"))
@@ -541,30 +608,41 @@ async def about(callback: types.CallbackQuery):
     text = (
         f"👨‍💻 <b>О разработчике</b>\n\n"
         f"⭐️ <b>Рейтинг:</b> {rating}/5.0 (на основе {len(approved)} отзывов)\n"
-        f"📦 <b>Проектов:</b> {len(completed)}+\n"
-        f"✅ <b>Гарантия:</b> 1 месяц поддержки\n\n"
+        f"📦 <b>Проектов:</b> {len(completed)}+ (всего {len(orders)})\n"
+        f"✅ <b>Гарантия:</b> 1 месяц поддержки + обслуживание бота\n\n"
         f"🔥 <b>Почему я:</b>\n"
-        f"✅ Опыт — бот, которым можно гордиться\n"
+        f"✅ Опыт — боты, которыми можно гордиться\n"
         f"✅ Качество — код не сыпется, работает 24/7\n"
         f"✅ Поддержка — не бросаю после продажи\n"
         f"✅ Результат — бот реально приносит деньги"
     )
     await callback.message.edit_text(text, reply_markup=back_keyboard())
 
-@dp.callback_query(F.data == "loyalty")
-async def loyalty(callback: types.CallbackQuery):
+@dp.callback_query(F.data == "referral")
+async def referral(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    orders = get_orders()
-    completed = [o for o in orders if o['user_id'] == user_id and o['status'] == 'completed']
+    
+    # Генерируем реферальную ссылку
+    bot_info = await bot.get_me()
+    ref_code = generate_referral_code(user_id)
+    ref_link = f"https://t.me/{bot_info.username}?start={ref_code}"
+    
+    # Считаем приглашённых друзей, которые сделали заказ
+    invited = count_referrals(user_id)
+    remaining = max(0, LOYALTY_THRESHOLD - invited)
     
     text = (
-        f"🎁 <b>Программа лояльности</b>\n\n"
+        f"🎁 <b>Приглашай друзей и получай бонусы!</b>\n\n"
         f"🔥 <b>Условия:</b>\n"
-        f"• За {LOYALTY_THRESHOLD} выполненных заказов — бонус {LOYALTY_BONUS}₽ на карту\n"
-        f"• Бонус начисляется автоматически после {LOYALTY_THRESHOLD}-го заказа\n\n"
-        f"📊 <b>Ваш прогресс:</b>\n"
-        f"✅ Выполнено заказов: {len(completed)}\n"
-        f"🎯 Осталось до бонуса: {max(0, LOYALTY_THRESHOLD - len(completed))}"
+        f"• Пригласи {LOYALTY_THRESHOLD} друзей, и они должны купить бота\n"
+        f"• После выполнения 5 заказов от приглашённых — бонус {LOYALTY_BONUS}₽ на карту\n"
+        f"• Бонус начисляется автоматически, напиши админу для получения\n\n"
+        f"📊 <b>Твой прогресс:</b>\n"
+        f"✅ Приглашено друзей, сделавших заказ: {invited}\n"
+        f"🎯 Осталось до бонуса: {remaining}\n\n"
+        f"🔗 <b>Твоя реферальная ссылка:</b>\n"
+        f"<code>{ref_link}</code>\n\n"
+        f"👇 Отправь эту ссылку друзьям!"
     )
     
     await callback.message.edit_text(text, reply_markup=back_keyboard())
@@ -614,7 +692,7 @@ async def leave_review(callback: types.CallbackQuery, state: FSMContext):
     
     await state.set_state(ReviewStates.waiting_rating)
     await callback.message.edit_text(
-        "⭐️ Оцените мою работу от 1 до 5:",
+        "⭐️ Оцени мою работу от 1 до 5:",
         reply_markup=rating_keyboard()
     )
 
@@ -624,7 +702,7 @@ async def process_rating(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(rating=rating)
     await state.set_state(ReviewStates.waiting_text)
     await callback.message.edit_text(
-        "📝 Напишите ваш отзыв (текст):",
+        "📝 Напиши свой отзыв:",
         reply_markup=cancel_keyboard()
     )
 
@@ -637,7 +715,7 @@ async def process_text(message: types.Message, state: FSMContext):
     await state.update_data(review_text=message.text)
     await state.set_state(ReviewStates.waiting_contact)
     await message.answer(
-        "📞 Оставьте ваш контакт для проверки (телефон или @username):",
+        "📞 Оставь свой контакт для проверки (телефон или @username):",
         reply_markup=cancel_keyboard()
     )
 
@@ -646,14 +724,14 @@ async def process_contact(message: types.Message, state: FSMContext):
     await state.update_data(contact=message.text)
     await state.set_state(ReviewStates.waiting_photo)
     await message.answer(
-        "📸 Добавьте фото к отзыву (или пропустите):",
+        "📸 Добавь фото к отзыву (или пропусти):",
         reply_markup=photo_options_keyboard()
     )
 
 @dp.callback_query(ReviewStates.waiting_photo, F.data == "add_photo")
 async def add_photo_prompt(callback: types.CallbackQuery):
     await callback.message.edit_text(
-        "📸 Отправьте фото:",
+        "📸 Отправь фото:",
         reply_markup=cancel_keyboard()
     )
 
@@ -733,7 +811,7 @@ async def my_orders(callback: types.CallbackQuery):
     
     if not user_orders:
         await callback.message.edit_text(
-            "📋 <b>У вас пока нет заказов</b>\n\nХотите заказать бота? Перейдите в каталог!",
+            "📋 <b>У тебя пока нет заказов</b>\n\nХочешь заказать бота? Переходи в каталог!",
             reply_markup=back_keyboard()
         )
         return
@@ -773,7 +851,7 @@ async def start_order(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "📝 <b>Оформление заказа</b>\n\n"
         "Шаг 1 из 3\n\n"
-        "Как с вами связаться? (телефон или @username)",
+        "Как с тобой связаться? (телефон или @username)",
         reply_markup=cancel_keyboard()
     )
 
@@ -783,7 +861,7 @@ async def process_contact(message: types.Message, state: FSMContext):
     await state.set_state(OrderStates.entering_details)
     await message.answer(
         "Шаг 2 из 3\n\n"
-        "Опишите подробнее, что нужно сделать?\n"
+        "Опиши подробнее, что нужно сделать?\n"
         "(какой функционал, дизайн, сроки)",
         reply_markup=cancel_keyboard()
     )
@@ -825,7 +903,7 @@ async def process_details(message: types.Message, state: FSMContext):
         f"✅ <b>Заказ #{order_id} создан!</b>\n\n"
         f"💎 Товар: {data['product_name']}\n"
         f"💰 Сумма: {data['product_price']}₽\n\n"
-        f"Я свяжусь с вами в ближайшее время для уточнения деталей.\n\n"
+        f"Я свяжусь с тобой в ближайшее время для уточнения деталей.\n\n"
         f"Спасибо за доверие! 🙌",
         reply_markup=main_menu()
     )
@@ -838,6 +916,25 @@ async def admin_panel(message: types.Message):
         await message.answer("⛔️ Доступ запрещен")
         return
     await message.answer("👑 <b>Админ-панель</b>", reply_markup=admin_menu())
+
+@dp.callback_query(F.data == "admin")
+async def admin_panel_callback(callback: types.CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔️ Доступ запрещен")
+        return
+    await callback.message.edit_text("👑 <b>Админ-панель</b>", reply_markup=admin_menu())
+
+@dp.callback_query(F.data == "exit_admin")
+async def exit_admin(callback: types.CallbackQuery, state: FSMContext):
+    """Выход из админки в пользовательскую панель"""
+    await state.clear()
+    rating = calculate_rating()
+    reviews = get_reviews()
+    approved_reviews = len([r for r in reviews if r.get('approved', False)])
+    await callback.message.edit_text(
+        f"🔥 <b>Главное меню</b>\n\n⭐️ Рейтинг: {rating}/5.0 (на основе {approved_reviews} отзывов)",
+        reply_markup=main_menu()
+    )
 
 @dp.callback_query(F.data == "admin_orders")
 async def admin_orders(callback: types.CallbackQuery):
@@ -859,8 +956,7 @@ async def admin_orders(callback: types.CallbackQuery):
         text += f"   💎 {o['product_name']}\n"
         text += f"   💰 {o['price']}₽\n"
         text += f"   📞 {o['contact']}\n"
-        text += f"   📊 {o['status']}\n"
-        text += f"   [Подтвердить](confirm_{o['id']}) | [Выполнено](complete_{o['id']})\n\n"
+        text += f"   📊 {o['status']}\n\n"
     
     # Добавляем кнопки действий
     kb = []
@@ -875,7 +971,7 @@ async def admin_orders(callback: types.CallbackQuery):
                 text=f"✔️ Выполнено #{o['id']}",
                 callback_data=f"complete_{o['id']}"
             )])
-    kb.append([InlineKeyboardButton(text="🔙 Назад", callback_data="admin")])
+    kb.append([InlineKeyboardButton(text="🔙 В админку", callback_data="admin")])
     
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
 
@@ -884,18 +980,20 @@ async def confirm_order(callback: types.CallbackQuery):
     order_id = callback.data.replace("confirm_", "")
     orders = get_orders()
     
+    order = None
     for o in orders:
         if o['id'] == order_id:
             o['status'] = 'in_progress'
+            order = o
             break
     
     save_orders(orders)
     
     # Уведомляем клиента
     await notify_user(
-        o['user_id'],
+        order['user_id'],
         f"✅ <b>Заказ #{order_id} подтверждён!</b>\n\n"
-        f"Я приступил к работе над вашим ботом.\n"
+        f"Я приступил к работе над твоим ботом.\n"
         f"О результате сообщу дополнительно."
     )
     
@@ -916,40 +1014,50 @@ async def complete_order(callback: types.CallbackQuery):
     
     save_orders(orders)
     
-    # Уведомляем клиента
-    await notify_user(
-        o['user_id'],
-        f"✅ <b>Заказ #{order_id} выполнен!</b>\n\n"
-        f"Ваш бот готов! 🚀\n\n"
-        f"⭐️ Пожалуйста, оставьте отзыв о работе — это очень важно для меня!\n"
-        f"👉 Нажмите «⭐️ Отзывы» в главном меню, чтобы поделиться впечатлениями.\n\n"
-        f"Спасибо, что выбрали меня! 🙌"
-    )
+    # Проверяем, пришёл ли этот клиент по рефералке
+    clients = get_clients()
+    client = next((c for c in clients if c['user_id'] == order['user_id']), None)
     
-    # Проверяем лояльность
-    if check_loyalty(o['user_id']):
+    if client and client.get('referred_by'):
+        # Отмечаем, что заказ выполнен для реферала
         referrals = get_referrals()
-        referrals.append({
-            "user_id": o['user_id'],
-            "type": "loyalty",
-            "bonus": LOYALTY_BONUS,
-            "created_at": datetime.now().isoformat()
-        })
+        for r in referrals:
+            if r['referred_id'] == order['user_id']:
+                r['order_completed'] = True
+                break
         save_referrals(referrals)
         
-        await notify_user(
-            o['user_id'],
-            f"🎁 <b>Бонус лояльности!</b>\n\n"
-            f"Поздравляем! Это ваш {LOYALTY_THRESHOLD}-й заказ.\n"
-            f"Вам начислен бонус {LOYALTY_BONUS}₽.\n\n"
-            f"Для получения напишите @x40vef4yX"
-        )
+        # Проверяем, не набрал ли реферер достаточно для бонуса
+        referrer_id = client['referred_by']
+        invited_completed = count_referrals(referrer_id)
         
-        await notify_admin(
-            f"🎁 <b>Бонус лояльности</b>\n\n"
-            f"Клиент @{o['username']} выполнил {LOYALTY_THRESHOLD} заказов!\n"
-            f"Бонус {LOYALTY_BONUS}₽ ожидает выплаты."
-        )
+        if invited_completed >= LOYALTY_THRESHOLD:
+            # Проверяем, получал ли уже бонус
+            existing = [r for r in referrals if r['referrer_id'] == referrer_id and r.get('bonus_paid')]
+            if not existing:
+                await notify_user(
+                    referrer_id,
+                    f"🎁 <b>Поздравляем! Ты выполнил условия программы лояльности!</b>\n\n"
+                    f"Ты пригласил {LOYALTY_THRESHOLD} друзей, и они сделали заказы.\n"
+                    f"Твой бонус {LOYALTY_BONUS}₽ ожидает выплаты!\n\n"
+                    f"Напиши @x40vef4yX для получения."
+                )
+                
+                await notify_admin(
+                    f"🎁 <b>Бонус лояльности</b>\n\n"
+                    f"Пользователь @{client['username']} выполнил условия!\n"
+                    f"Пригласил {LOYALTY_THRESHOLD} друзей, бонус {LOYALTY_BONUS}₽."
+                )
+    
+    # Уведомляем клиента о выполнении заказа
+    await notify_user(
+        order['user_id'],
+        f"✅ <b>Заказ #{order_id} выполнен!</b>\n\n"
+        f"Твой бот готов! 🚀\n\n"
+        f"⭐️ Пожалуйста, оставь отзыв о работе — это очень важно для меня!\n"
+        f"👉 Нажми «⭐️ Отзывы» в главном меню.\n\n"
+        f"Спасибо, что выбрал меня! 🙌"
+    )
     
     await callback.answer("✅ Заказ отмечен как выполненный")
     await admin_orders(callback)
@@ -980,7 +1088,7 @@ async def admin_reviews(callback: types.CallbackQuery):
             InlineKeyboardButton(text=f"✅ Одобрить #{r['id']}", callback_data=f"approve_review_{r['id']}"),
             InlineKeyboardButton(text=f"❌ Отклонить #{r['id']}", callback_data=f"reject_review_{r['id']}")
         ])
-    kb.append([InlineKeyboardButton(text="🔙 Назад", callback_data="admin")])
+    kb.append([InlineKeyboardButton(text="🔙 В админку", callback_data="admin")])
     
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
 
@@ -1009,6 +1117,29 @@ async def reject_review(callback: types.CallbackQuery):
     await callback.answer("❌ Отзыв отклонён и удалён")
     await admin_reviews(callback)
 
+@dp.callback_query(F.data == "admin_clients")
+async def admin_clients(callback: types.CallbackQuery):
+    clients = get_clients()
+    
+    if not clients:
+        await callback.message.edit_text("👥 Нет клиентов", reply_markup=back_keyboard())
+        return
+    
+    text = "👥 <b>Клиенты</b>\n\n"
+    for c in clients[-10:]:
+        orders = get_orders()
+        user_orders = [o for o in orders if o['user_id'] == c['user_id']]
+        completed = len([o for o in user_orders if o['status'] == 'completed'])
+        invited = count_referrals(c['user_id'])
+        
+        text += f"👤 @{c['username']}\n"
+        text += f"   🆔 {c['user_id']}\n"
+        text += f"   📦 Заказов: {len(user_orders)} (✅{completed})\n"
+        text += f"   👥 Приглашено друзей: {invited}\n"
+        text += f"   🕐 {c['first_seen'][:10]}\n\n"
+    
+    await callback.message.edit_text(text, reply_markup=back_keyboard())
+
 @dp.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: types.CallbackQuery):
     orders = get_orders()
@@ -1023,7 +1154,7 @@ async def admin_stats(callback: types.CallbackQuery):
     total_reviews = len(reviews)
     approved_reviews = len([r for r in reviews if r.get('approved', False)])
     rating = calculate_rating()
-    total_bonuses = len([r for r in referrals if r['type'] == 'loyalty'])
+    total_referrals = len([r for r in referrals if r.get('order_completed', False)])
     
     text = (
         f"📊 <b>Статистика</b>\n\n"
@@ -1033,28 +1164,32 @@ async def admin_stats(callback: types.CallbackQuery):
         f"👥 Клиентов: {total_clients}\n"
         f"⭐️ Отзывов: {approved_reviews}/{total_reviews}\n"
         f"📊 Рейтинг: {rating}/5.0\n"
-        f"🎁 Бонусов выдано: {total_bonuses}"
+        f"👥 Приглашённых друзей: {total_referrals}"
     )
     
     await callback.message.edit_text(text, reply_markup=back_keyboard())
 
-@dp.callback_query(F.data == "admin_clients")
-async def admin_clients(callback: types.CallbackQuery):
-    clients = get_clients()
+@dp.callback_query(F.data == "admin_loyalty")
+async def admin_loyalty(callback: types.CallbackQuery):
+    referrals = get_referrals()
+    loyalty = [r for r in referrals if r.get('order_completed', False)]
     
-    if not clients:
-        await callback.message.edit_text("👥 Нет клиентов", reply_markup=back_keyboard())
-        return
+    # Группируем по реферерам
+    referrers = {}
+    for r in loyalty:
+        if r['referrer_id'] not in referrers:
+            referrers[r['referrer_id']] = 0
+        referrers[r['referrer_id']] += 1
     
-    text = "👥 <b>Клиенты</b>\n\n"
-    for c in clients[-10:]:
-        orders = get_orders()
-        user_orders = [o for o in orders if o['user_id'] == c['user_id']]
-        completed = len([o for o in user_orders if o['status'] == 'completed'])
-        text += f"👤 @{c['username']}\n"
-        text += f"   🆔 {c['user_id']}\n"
-        text += f"   📦 Заказов: {len(user_orders)} (✅{completed})\n"
-        text += f"   🕐 {c['first_seen'][:10]}\n\n"
+    text = "🎁 <b>Бонусы лояльности</b>\n\n"
+    if not referrers:
+        text += "Пока нет начисленных бонусов."
+    else:
+        for referrer_id, count in referrers.items():
+            if count >= LOYALTY_THRESHOLD:
+                text += f"👤 ID: {referrer_id}\n"
+                text += f"   👥 Пригласил: {count} друзей\n"
+                text += f"   💰 Бонус: {LOYALTY_BONUS}₽ (доступен)\n\n"
     
     await callback.message.edit_text(text, reply_markup=back_keyboard())
 
@@ -1132,22 +1267,6 @@ async def broadcast_confirm(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=admin_menu()
     )
     await state.clear()
-
-@dp.callback_query(F.data == "admin_loyalty")
-async def admin_loyalty(callback: types.CallbackQuery):
-    referrals = get_referrals()
-    loyalty = [r for r in referrals if r['type'] == 'loyalty']
-    
-    text = "🎁 <b>Бонусы лояльности</b>\n\n"
-    if not loyalty:
-        text += "Пока нет начисленных бонусов."
-    else:
-        for r in loyalty[-10:]:
-            text += f"👤 ID: {r['user_id']}\n"
-            text += f"💰 Сумма: {r['bonus']}₽\n"
-            text += f"🕐 {r['created_at'][:10]}\n\n"
-    
-    await callback.message.edit_text(text, reply_markup=back_keyboard())
 
 # ============================================
 # ЗАПУСК
