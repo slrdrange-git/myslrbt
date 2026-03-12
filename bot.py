@@ -25,7 +25,7 @@ from aiogram.client.default import DefaultBotProperties
 TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
 
 # Логи
 logging.basicConfig(level=logging.INFO)
@@ -256,10 +256,11 @@ def generate_referral_code(user_id):
     code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     return f"ref_{user_id}_{code}"
 
-def get_referral_link(user_id):
+async def get_referral_link(user_id):
     """Возвращает реферальную ссылку для пользователя"""
     code = generate_referral_code(user_id)
-    return f"https://t.me/{(await bot.get_me()).username}?start={code}"
+    bot_info = await bot.get_me()
+    return f"https://t.me/{bot_info.username}?start={code}"
 
 # ============================================
 # РАСЧЁТ РЕЙТИНГА
@@ -506,8 +507,8 @@ async def cmd_start(message: types.Message):
             "first_seen": datetime.now().isoformat(),
             "orders": [],
             "reviews": [],
-            "referred_by": referrer_id,  # Кто пригласил
-            "referrals": []  # Кого пригласил
+            "referred_by": referrer_id,
+            "referrals": []
         })
         save_clients(clients)
         
@@ -623,9 +624,9 @@ async def referral(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     
     # Генерируем реферальную ссылку
+    code = generate_referral_code(user_id)
     bot_info = await bot.get_me()
-    ref_code = generate_referral_code(user_id)
-    ref_link = f"https://t.me/{bot_info.username}?start={ref_code}"
+    ref_link = f"https://t.me/{bot_info.username}?start={code}"
     
     # Считаем приглашённых друзей, которые сделали заказ
     invited = count_referrals(user_id)
