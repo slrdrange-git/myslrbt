@@ -11,7 +11,6 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
-    LabeledPrice, PreCheckoutQuery, SuccessfulPayment,
     FSInputFile
 )
 from aiogram.fsm.context import FSMContext
@@ -23,9 +22,11 @@ from aiogram.client.default import DefaultBotProperties
 # НАСТРОЙКИ
 # ============================================
 TOKEN = os.environ.get('BOT_TOKEN')
+YOOMONEY_WALLET = os.environ.get('YOOMONEY_WALLET')  # Номер кошелька Юмани
+YOOMONEY_SECRET = os.environ.get('YOOMONEY_SECRET')  # Секретный ключ (опционально)
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
 
 # Логи
 logging.basicConfig(level=logging.INFO)
@@ -99,8 +100,8 @@ DEMO_PROJECT = {
 }
 
 # === Программа лояльности ===
-LOYALTY_THRESHOLD = 5  # Количество приглашённых друзей для бонуса
-LOYALTY_BONUS = 250     # Сумма бонуса в рублях
+LOYALTY_THRESHOLD = 5
+LOYALTY_BONUS = 250
 
 # === Цены ===
 BASE_PRICE = 1999
@@ -200,7 +201,7 @@ PRODUCTS = [
     {
         "id": "custom_bot",
         "name": "⚡️ Индивидуальный бот",
-        "price": BASE_PRICE,
+        "price": CUSTOM_PRICE,
         "type": "custom",
         "description": "✅ Опыт — бот, которым можно гордиться\n✅ Качество — код не сыпется, работает 24/7\n✅ Поддержка — не бросаю после продажи\n✅ Результат — бот реально приносит деньги",
         "features": [
@@ -252,15 +253,31 @@ PRODUCTS = [
 # ГЕНЕРАЦИЯ РЕФЕРАЛЬНОЙ ССЫЛКИ
 # ============================================
 def generate_referral_code(user_id):
-    """Генерирует уникальный реферальный код"""
     code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     return f"ref_{user_id}_{code}"
 
 async def get_referral_link(user_id):
-    """Возвращает реферальную ссылку для пользователя"""
     code = generate_referral_code(user_id)
     bot_info = await bot.get_me()
     return f"https://t.me/{bot_info.username}?start={code}"
+
+# ============================================
+# ГЕНЕРАЦИЯ ССЫЛКИ НА ЮМАНИ
+# ============================================
+def generate_yoomoney_link(order_id, amount, comment=""):
+    """Генерирует ссылку для оплаты через ЮMoney"""
+    base_url = "https://yoomoney.ru/quickpay/confirm.xml"
+    params = {
+        "receiver": YOOMONEY_WALLET,
+        "quickpay-form": "button",
+        "paymentType": "PC",
+        "sum": amount,
+        "label": order_id,
+        "comment": comment or f"Оплата заказа #{order_id}",
+        "successURL": f"{RENDER_EXTERNAL_URL}/payment_success?order_id={order_id}"
+    }
+    query = "&".join([f"{k}={v}" for k, v in params.items()])
+    return f"{base_url}?{query}"
 
 # ============================================
 # РАСЧЁТ РЕЙТИНГА
@@ -270,7 +287,7 @@ def calculate_rating():
     approved = [r for r in reviews if r.get('approved', False)]
     
     if not approved:
-        return 5.0  # По умолчанию 5 звёзд
+        return 5.0
     
     total = sum(r['rating'] for r in approved)
     avg = total / len(approved)
@@ -280,7 +297,6 @@ def calculate_rating():
 # ПОДСЧЁТ ПРИГЛАШЁННЫХ ДРУЗЕЙ
 # ============================================
 def count_referrals(user_id):
-    """Считает количество приглашённых друзей, которые сделали заказ"""
     referrals = get_referrals()
     return len([r for r in referrals if r['referrer_id'] == user_id and r.get('order_completed', False)])
 
@@ -298,7 +314,6 @@ class ReviewStates(StatesGroup):
     waiting_text = State()
     waiting_contact = State()
     waiting_photo = State()
-    confirming = State()
 
 class AdminStates(StatesGroup):
     processing_order = State()
@@ -322,14 +337,12 @@ dp = Dispatcher(storage=storage)
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ============================================
 async def notify_admin(message: str):
-    """Отправляет уведомление админу"""
     try:
         await bot.send_message(ADMIN_ID, f"👑 <b>Админ:</b>\n{message}")
     except Exception as e:
         logger.error(f"Ошибка уведомления админа: {e}")
 
 async def notify_user(user_id: int, message: str):
-    """Отправляет уведомление пользователю"""
     try:
         await bot.send_message(user_id, f"📢 <b>Уведомление:</b>\n{message}")
     except Exception as e:
@@ -437,6 +450,66 @@ def home():
 def health():
     return "OK", 200
 
+@app.route('/payment_success', methods=['GET'])
+def payment_success():
+    order_id = request.args.get('order_id', '')
+    return f"""
+    <html>
+        <head><title>Оплата прошла успешно</title></head>
+        <body style="text-align: center; padding: 50px;">
+            <h1>✅ Оплата прошла успешно!</h1>
+            <p>Заказ #{order_id} оплачен. Можете вернуться в Telegram.</p>
+            <p>Бот начнёт выполняться в ближайшее время.</p>
+        </body>
+    </html>
+    """
+
+@app.route('/yoomoney_notify', methods=['POST'])
+def yoomoney_notify():
+    try:
+        order_id = request.form.get('label')
+        amount = float(request.form.get('amount', 0))
+        operation_id = request.form.get('operation_id')
+        
+        if not order_id:
+            return "Order ID not found", 400
+        
+        orders = get_orders()
+        for order in orders:
+            if order['id'] == order_id:
+                if order['status'] == 'payment':
+                    order['status'] = 'completed'
+                    order['paid_at'] = datetime.now().isoformat()
+                    order['payment_id'] = operation_id
+                    save_orders(orders)
+                    
+                    asyncio.run_coroutine_threadsafe(
+                        notify_user(
+                            order['user_id'],
+                            f"✅ <b>Заказ #{order_id} оплачен!</b>\n\n"
+                            f"Спасибо за оплату! Я приступаю к работе над твоим ботом.\n\n"
+                            f"⭐️ <b>Важно:</b> Когда получишь готового бота, не забудь оставить отзыв!\n"
+                            f"👉 Это поможет другим клиентам сделать правильный выбор."
+                        ),
+                        loop
+                    )
+                    
+                    asyncio.run_coroutine_threadsafe(
+                        notify_admin(
+                            f"💰 <b>Поступила оплата!</b>\n\n"
+                            f"Заказ #{order_id}\n"
+                            f"Сумма: {amount}₽\n"
+                            f"Клиент: @{order['username']}"
+                        ),
+                        loop
+                    )
+                break
+        
+        return "OK", 200
+    except Exception as e:
+        logger.error(f"Ошибка уведомления от ЮMoney: {e}")
+        return "Error", 500
+
 @app.route(f'/webhook/{TOKEN}', methods=['POST'])
 def webhook():
     try:
@@ -486,17 +559,14 @@ async def cmd_start(message: types.Message):
     user = message.from_user
     logger.info(f"Пользователь {user.full_name} запустил бота")
     
-    # Проверяем, пришёл ли пользователь по реферальной ссылке
     args = message.text.split()
     referrer_id = None
     if len(args) > 1 and args[1].startswith('ref_'):
         try:
             referrer_id = int(args[1].split('_')[1])
-            logger.info(f"Пользователь пришёл по реферальной ссылке от {referrer_id}")
         except:
             pass
     
-    # Сохраняем клиента
     clients = get_clients()
     client = next((c for c in clients if c['user_id'] == user.id), None)
     
@@ -512,7 +582,6 @@ async def cmd_start(message: types.Message):
         })
         save_clients(clients)
         
-        # Если пришёл по рефералке, сохраняем связь
         if referrer_id:
             referrals = get_referrals()
             referrals.append({
@@ -610,26 +679,22 @@ async def about(callback: types.CallbackQuery):
         f"👨‍💻 <b>О разработчике</b>\n\n"
         f"⭐️ <b>Рейтинг:</b> {rating}/5.0 (на основе {len(approved)} отзывов)\n"
         f"📦 <b>Проектов:</b> {len(completed)}+ (всего {len(orders)})\n"
-        f"✅ <b>Гарантия:</b> 2 месяца поддержки + обслуживание бота\n\n"
+        f"✅ <b>Гарантия:</b> 1 месяц поддержки + обслуживание бота\n\n"
         f"🔥 <b>Почему я:</b>\n"
         f"✅ Опыт — боты, которыми можно гордиться\n"
         f"✅ Качество — код не сыпется, работает 24/7\n"
         f"✅ Поддержка — не бросаю после продажи\n"
-        f"✅ Результат — бот реально приносит деньги\n"
-        f"ℹ️ Контакт разработчика: @x40vef4yX"      
+        f"✅ Результат — бот реально приносит деньги"
     )
     await callback.message.edit_text(text, reply_markup=back_keyboard())
 
 @dp.callback_query(F.data == "referral")
 async def referral(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    
-    # Генерируем реферальную ссылку
     code = generate_referral_code(user_id)
     bot_info = await bot.get_me()
     ref_link = f"https://t.me/{bot_info.username}?start={code}"
     
-    # Считаем приглашённых друзей, которые сделали заказ
     invited = count_referrals(user_id)
     remaining = max(0, LOYALTY_THRESHOLD - invited)
     
@@ -681,7 +746,6 @@ async def show_reviews(callback: types.CallbackQuery):
 
 @dp.callback_query(F.data == "leave_review")
 async def leave_review(callback: types.CallbackQuery, state: FSMContext):
-    # Проверяем, есть ли выполненные заказы
     orders = get_orders()
     user_orders = [o for o in orders if o['user_id'] == callback.from_user.id and o['status'] == 'completed']
     
@@ -822,13 +886,18 @@ async def my_orders(callback: types.CallbackQuery):
     for o in user_orders[-5:]:
         status_emoji = {
             'new': '🆕',
-            'paid': '💳',
-            'in_progress': '⚙️',
+            'payment': '💳',
             'completed': '✅'
         }.get(o['status'], '❓')
+        status_text = {
+            'new': 'Новый, ожидает подтверждения',
+            'payment': 'Ожидает оплаты',
+            'completed': 'Выполнен'
+        }.get(o['status'], o['status'])
+        
         text += f"{status_emoji} <b>Заказ #{o['id']}</b>\n"
         text += f"   💎 {o['product_name']}\n"
-        text += f"   📊 Статус: {o['status']}\n"
+        text += f"   📊 Статус: {status_text}\n"
         text += f"   💰 {o['price']}₽\n\n"
     
     await callback.message.edit_text(text, reply_markup=back_keyboard())
@@ -873,7 +942,6 @@ async def process_details(message: types.Message, state: FSMContext):
     await state.update_data(details=message.text)
     data = await state.get_data()
     
-    # Создаём заказ
     orders = get_orders()
     order_id = generate_order_id()
     new_order = {
@@ -891,7 +959,6 @@ async def process_details(message: types.Message, state: FSMContext):
     orders.append(new_order)
     save_orders(orders)
     
-    # Уведомление админу
     await notify_admin(
         f"🆕 <b>НОВЫЙ ЗАКАЗ #{order_id}</b>\n\n"
         f"👤 Клиент: @{message.from_user.username or message.from_user.full_name}\n"
@@ -905,8 +972,9 @@ async def process_details(message: types.Message, state: FSMContext):
         f"✅ <b>Заказ #{order_id} создан!</b>\n\n"
         f"💎 Товар: {data['product_name']}\n"
         f"💰 Сумма: {data['product_price']}₽\n\n"
-        f"Я свяжусь с вами в ближайшее время для уточнения деталей.\n\n"
-        f"Спасибо за доверие, уважаемый клиент! 🙌",
+        f"Ожидай подтверждения от администратора.\n"
+        f"После подтверждения придёт ссылка на оплату.\n\n"
+        f"Спасибо за доверие! 🙌",
         reply_markup=main_menu()
     )
     await state.clear()
@@ -928,7 +996,6 @@ async def admin_panel_callback(callback: types.CallbackQuery):
 
 @dp.callback_query(F.data == "exit_admin")
 async def exit_admin(callback: types.CallbackQuery, state: FSMContext):
-    """Выход из админки в пользовательскую панель"""
     await state.clear()
     rating = calculate_rating()
     reviews = get_reviews()
@@ -949,119 +1016,65 @@ async def admin_orders(callback: types.CallbackQuery):
     for o in orders[-10:]:
         status_emoji = {
             'new': '🆕',
-            'paid': '💳',
-            'in_progress': '⚙️',
+            'payment': '💳',
             'completed': '✅'
         }.get(o['status'], '❓')
+        status_text = {
+            'new': 'Новый',
+            'payment': 'Ожидает оплаты',
+            'completed': 'Выполнен'
+        }.get(o['status'], o['status'])
+        
         text += f"{status_emoji} <b>#{o['id']}</b>\n"
         text += f"   👤 @{o['username']}\n"
         text += f"   💎 {o['product_name']}\n"
         text += f"   💰 {o['price']}₽\n"
         text += f"   📞 {o['contact']}\n"
-        text += f"   📊 {o['status']}\n\n"
+        text += f"   📊 {status_text}\n\n"
     
-    # Добавляем кнопки действий
+    # Кнопки действий
     kb = []
-    for o in orders[-5:]:
+    for o in orders[-10:]:
         if o['status'] == 'new':
             kb.append([InlineKeyboardButton(
-                text=f"✅ Подтвердить #{o['id']}",
-                callback_data=f"confirm_{o['id']}"
-            )])
-        elif o['status'] == 'in_progress':
-            kb.append([InlineKeyboardButton(
-                text=f"✔️ Выполнено #{o['id']}",
-                callback_data=f"complete_{o['id']}"
+                text=f"✅ Принять #{o['id']}",
+                callback_data=f"accept_{o['id']}"
             )])
     kb.append([InlineKeyboardButton(text="🔙 В админку", callback_data="admin")])
     
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
 
-@dp.callback_query(F.data.startswith("confirm_"))
-async def confirm_order(callback: types.CallbackQuery):
-    order_id = callback.data.replace("confirm_", "")
+@dp.callback_query(F.data.startswith("accept_"))
+async def accept_order(callback: types.CallbackQuery):
+    order_id = callback.data.replace("accept_", "")
     orders = get_orders()
     
     order = None
     for o in orders:
         if o['id'] == order_id:
-            o['status'] = 'in_progress'
+            o['status'] = 'payment'
             order = o
             break
     
     save_orders(orders)
     
-    # Уведомляем клиента
-    await notify_user(
-        order['user_id'],
-        f"✅ <b>Заказ #{order_id} подтверждён!</b>\n\n"
-        f"Я приступил к работе над твоим ботом.\n"
-        f"О результате сообщу дополнительно."
+    payment_link = generate_yoomoney_link(
+        order_id=order_id,
+        amount=order['price'],
+        comment=f"Оплата заказа #{order_id} ({order['product_name']})"
     )
     
-    await callback.answer("✅ Заказ подтверждён")
-    await admin_orders(callback)
-
-@dp.callback_query(F.data.startswith("complete_"))
-async def complete_order(callback: types.CallbackQuery):
-    order_id = callback.data.replace("complete_", "")
-    orders = get_orders()
-    
-    order = None
-    for o in orders:
-        if o['id'] == order_id:
-            o['status'] = 'completed'
-            order = o
-            break
-    
-    save_orders(orders)
-    
-    # Проверяем, пришёл ли этот клиент по рефералке
-    clients = get_clients()
-    client = next((c for c in clients if c['user_id'] == order['user_id']), None)
-    
-    if client and client.get('referred_by'):
-        # Отмечаем, что заказ выполнен для реферала
-        referrals = get_referrals()
-        for r in referrals:
-            if r['referred_id'] == order['user_id']:
-                r['order_completed'] = True
-                break
-        save_referrals(referrals)
-        
-        # Проверяем, не набрал ли реферер достаточно для бонуса
-        referrer_id = client['referred_by']
-        invited_completed = count_referrals(referrer_id)
-        
-        if invited_completed >= LOYALTY_THRESHOLD:
-            # Проверяем, получал ли уже бонус
-            existing = [r for r in referrals if r['referrer_id'] == referrer_id and r.get('bonus_paid')]
-            if not existing:
-                await notify_user(
-                    referrer_id,
-                    f"🎁 <b>Поздравляем! Ты выполнил условия программы лояльности!</b>\n\n"
-                    f"Ты пригласил {LOYALTY_THRESHOLD} друзей, и они сделали заказы.\n"
-                    f"Твой бонус {LOYALTY_BONUS}₽ ожидает выплаты!\n\n"
-                    f"Напиши @x40vef4yX для получения."
-                )
-                
-                await notify_admin(
-                    f"🎁 <b>Бонус лояльности</b>\n\n"
-                    f"Пользователь @{client['username']} выполнил условия!\n"
-                    f"Пригласил {LOYALTY_THRESHOLD} друзей, бонус {LOYALTY_BONUS}₽."
-                )
-    
-    # Уведомляем клиента о выполнении заказа
     await notify_user(
         order['user_id'],
-        f"✅ <b>Заказ #{order_id} выполнен!</b>\n\n"
-        f"Твой бот готов! 🚀\n\n"
-        f"⭐️ Пожалуйста, оставь отзыв о работе — это очень важно для меня!\n"
-        f"👉 Нажми «⭐️ Отзывы» в главном меню.\n\n"
-        f"Спасибо, что выбрал меня! 🙌"
+        f"✅ <b>Заказ #{order_id} принят в работу!</b>\n\n"
+        f"💎 Товар: {order['product_name']}\n"
+        f"💰 Сумма к оплате: {order['price']}₽\n\n"
+        f"👇 Для начала работы необходимо оплатить заказ:\n"
+        f"{payment_link}\n\n"
+        f"После оплаты я сразу приступлю к разработке!"
     )
     
-    await callback.answer("✅ Заказ отмечен как выполненный")
+    await callback.answer("✅ Заказ принят, клиенту отправлена ссылка на оплату")
     await admin_orders(callback)
 
 @dp.callback_query(F.data == "admin_reviews")
@@ -1176,7 +1189,6 @@ async def admin_loyalty(callback: types.CallbackQuery):
     referrals = get_referrals()
     loyalty = [r for r in referrals if r.get('order_completed', False)]
     
-    # Группируем по реферерам
     referrers = {}
     for r in loyalty:
         if r['referrer_id'] not in referrers:
