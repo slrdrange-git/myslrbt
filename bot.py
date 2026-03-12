@@ -11,6 +11,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
+    LabeledPrice, PreCheckoutQuery, SuccessfulPayment,
     FSInputFile
 )
 from aiogram.fsm.context import FSMContext
@@ -22,11 +23,10 @@ from aiogram.client.default import DefaultBotProperties
 # НАСТРОЙКИ
 # ============================================
 TOKEN = os.environ.get('BOT_TOKEN')
-YOOMONEY_WALLET = os.environ.get('YOOMONEY_WALLET')
-YOOMONEY_SECRET = os.environ.get('YOOMONEY_SECRET')
+PAYMENT_TOKEN = os.environ.get('PAYMENT_TOKEN')  # Токен от PayMaster из BotFather
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
 
 # Логи
 logging.basicConfig(level=logging.INFO)
@@ -265,24 +265,6 @@ async def get_referral_link(user_id):
     return f"https://t.me/{bot_info.username}?start={code}"
 
 # ============================================
-# ГЕНЕРАЦИЯ ССЫЛКИ НА ЮМАНИ
-# ============================================
-def generate_yoomoney_link(order_id, amount, comment=""):
-    """Генерирует ссылку для оплаты через ЮMoney"""
-    base_url = "https://yoomoney.ru/quickpay/confirm.xml"
-    params = {
-        "receiver": YOOMONEY_WALLET,
-        "quickpay-form": "button",
-        "paymentType": "PC",
-        "sum": amount,
-        "label": order_id,
-        "comment": comment or f"Оплата заказа #{order_id}",
-        "successURL": f"{RENDER_EXTERNAL_URL}/payment_success?order_id={order_id}"
-    }
-    query = "&".join([f"{k}={v}" for k, v in params.items()])
-    return f"{base_url}?{query}"
-
-# ============================================
 # РАСЧЁТ РЕЙТИНГА
 # ============================================
 def calculate_rating():
@@ -477,66 +459,6 @@ def home():
 @app.route('/health', methods=['GET'])
 def health():
     return "OK", 200
-
-@app.route('/payment_success', methods=['GET'])
-def payment_success():
-    order_id = request.args.get('order_id', '')
-    return f"""
-    <html>
-        <head><title>Оплата прошла успешно</title></head>
-        <body style="text-align: center; padding: 50px;">
-            <h1>✅ Оплата прошла успешно!</h1>
-            <p>Заказ #{order_id} оплачен. Можете вернуться в Telegram.</p>
-            <p>Бот начнёт выполняться в ближайшее время.</p>
-        </body>
-    </html>
-    """
-
-@app.route('/yoomoney_notify', methods=['POST'])
-def yoomoney_notify():
-    try:
-        order_id = request.form.get('label')
-        amount = float(request.form.get('amount', 0))
-        operation_id = request.form.get('operation_id')
-        
-        if not order_id:
-            return "Order ID not found", 400
-        
-        orders = get_orders()
-        for order in orders:
-            if order['id'] == order_id:
-                if order['status'] == 'payment':
-                    order['status'] = 'completed'
-                    order['paid_at'] = datetime.now().isoformat()
-                    order['payment_id'] = operation_id
-                    save_orders(orders)
-                    
-                    asyncio.run_coroutine_threadsafe(
-                        notify_user(
-                            order['user_id'],
-                            f"✅ <b>Заказ #{order_id} оплачен!</b>\n\n"
-                            f"Спасибо за оплату! Я приступаю к работе над твоим ботом.\n\n"
-                            f"⭐️ <b>Важно:</b> Когда получишь готового бота, не забудь оставить отзыв!\n"
-                            f"👉 Это поможет другим клиентам сделать правильный выбор."
-                        ),
-                        loop
-                    )
-                    
-                    asyncio.run_coroutine_threadsafe(
-                        notify_admin(
-                            f"💰 <b>Поступила оплата!</b>\n\n"
-                            f"Заказ #{order_id}\n"
-                            f"Сумма: {amount}₽\n"
-                            f"Клиент: @{order['username']}"
-                        ),
-                        loop
-                    )
-                break
-        
-        return "OK", 200
-    except Exception as e:
-        logger.error(f"Ошибка уведомления от ЮMoney: {e}")
-        return "Error", 500
 
 @app.route(f'/webhook/{TOKEN}', methods=['POST'])
 def webhook():
@@ -1010,11 +932,80 @@ async def process_details(message: types.Message, state: FSMContext):
         f"💎 Товар: {data['product_name']}\n"
         f"💰 Сумма: {data['product_price']}₽\n\n"
         f"Ожидай подтверждения от администратора.\n"
-        f"После подтверждения придёт ссылка на оплату.\n\n"
+        f"После подтверждения придёт счёт на оплату.\n\n"
         f"Спасибо за доверие! 🙌",
         reply_markup=main_menu()
     )
     await state.clear()
+
+# ---------- ОПЛАТА ЧЕРЕЗ PAYMASTER ----------
+@dp.callback_query(F.data.startswith("accept_"))
+async def accept_order(callback: types.CallbackQuery):
+    order_id = callback.data.replace("accept_", "")
+    orders = get_orders()
+    
+    order = None
+    for o in orders:
+        if o['id'] == order_id:
+            o['status'] = 'payment'
+            order = o
+            break
+    
+    save_orders(orders)
+    
+    # Создаём счёт для оплаты
+    prices = [LabeledPrice(label=order['product_name'], amount=order['price'] * 100)]  # В копейках
+    
+    await bot.send_invoice(
+        chat_id=order['user_id'],
+        title=f"Оплата заказа #{order_id}",
+        description=f"Товар: {order['product_name']}\n\nДетали: {order['details']}",
+        payload=order_id,
+        provider_token=PAYMENT_TOKEN,
+        currency="RUB",
+        prices=prices,
+        start_parameter="create_order",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Оплатить", pay=True)]
+        ])
+    )
+    
+    await callback.answer("✅ Счёт отправлен клиенту")
+    await admin_orders(callback)
+
+@dp.pre_checkout_query()
+async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+@dp.message(F.successful_payment)
+async def successful_payment_handler(message: types.Message):
+    payment_info = message.successful_payment
+    order_id = payment_info.invoice_payload
+    
+    orders = get_orders()
+    for order in orders:
+        if order['id'] == order_id:
+            order['status'] = 'completed'
+            order['paid_at'] = datetime.now().isoformat()
+            order['payment_id'] = payment_info.telegram_payment_charge_id
+            save_orders(orders)
+            
+            # Уведомляем клиента
+            await message.answer(
+                f"✅ <b>Заказ #{order_id} оплачен!</b>\n\n"
+                f"Спасибо за оплату! Я приступаю к работе над твоим ботом.\n\n"
+                f"⭐️ <b>Важно:</b> Когда получишь готового бота, не забудь оставить отзыв!\n"
+                f"👉 Это поможет другим клиентам сделать правильный выбор."
+            )
+            
+            # Уведомляем админа
+            await notify_admin(
+                f"💰 <b>Поступила оплата!</b>\n\n"
+                f"Заказ #{order_id}\n"
+                f"Сумма: {payment_info.total_amount / 100}₽\n"
+                f"Клиент: @{message.from_user.username or message.from_user.full_name}"
+            )
+            break
 
 # ---------- АДМИНКА ----------
 @dp.message(Command("admin"))
@@ -1245,39 +1236,6 @@ async def admin_orders(callback: types.CallbackQuery):
     kb.append([InlineKeyboardButton(text="🔙 В админку", callback_data="admin")])
     
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
-
-@dp.callback_query(F.data.startswith("accept_"))
-async def accept_order(callback: types.CallbackQuery):
-    order_id = callback.data.replace("accept_", "")
-    orders = get_orders()
-    
-    order = None
-    for o in orders:
-        if o['id'] == order_id:
-            o['status'] = 'payment'
-            order = o
-            break
-    
-    save_orders(orders)
-    
-    payment_link = generate_yoomoney_link(
-        order_id=order_id,
-        amount=order['price'],
-        comment=f"Оплата заказа #{order_id} ({order['product_name']})"
-    )
-    
-    await notify_user(
-        order['user_id'],
-        f"✅ <b>Заказ #{order_id} принят в работу!</b>\n\n"
-        f"💎 Товар: {order['product_name']}\n"
-        f"💰 Сумма к оплате: {order['price']}₽\n\n"
-        f"👇 Для начала работы необходимо оплатить заказ:\n"
-        f"{payment_link}\n\n"
-        f"После оплаты я сразу приступлю к разработке!"
-    )
-    
-    await callback.answer("✅ Заказ принят, клиенту отправлена ссылка на оплату")
-    await admin_orders(callback)
 
 @dp.callback_query(F.data.startswith("cancel_order_"))
 async def cancel_order_admin(callback: types.CallbackQuery):
