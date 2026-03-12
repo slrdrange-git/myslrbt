@@ -22,11 +22,11 @@ from aiogram.client.default import DefaultBotProperties
 # НАСТРОЙКИ
 # ============================================
 TOKEN = os.environ.get('BOT_TOKEN')
-YOOMONEY_WALLET = os.environ.get('YOOMONEY_WALLET')  # Номер кошелька Юмани
-YOOMONEY_SECRET = os.environ.get('YOOMONEY_SECRET')  # Секретный ключ (опционально)
+YOOMONEY_WALLET = os.environ.get('YOOMONEY_WALLET')
+YOOMONEY_SECRET = os.environ.get('YOOMONEY_SECRET')
 ADMIN_ID = 775020198
 PORT = int(os.environ.get('PORT', 8080))
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-bot.onrender.com')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
 
 # Логи
 logging.basicConfig(level=logging.INFO)
@@ -678,7 +678,7 @@ async def about(callback: types.CallbackQuery):
     text = (
         f"👨‍💻 <b>О разработчике</b>\n\n"
         f"⭐️ <b>Рейтинг:</b> {rating}/5.0 (на основе {len(approved)} отзывов)\n"
-        f"📦 <b>Проектов: 50+ (всего продано ботов - {len(orders)} )\n"
+        f"📦 <b>Проектов:</b> {len(completed)}+ (всего {len(orders)})\n"
         f"✅ <b>Гарантия:</b> 1 месяц поддержки + обслуживание бота\n\n"
         f"🔥 <b>Почему я:</b>\n"
         f"✅ Опыт — боты, которыми можно гордиться\n"
@@ -887,12 +887,14 @@ async def my_orders(callback: types.CallbackQuery):
         status_emoji = {
             'new': '🆕',
             'payment': '💳',
-            'completed': '✅'
+            'completed': '✅',
+            'cancelled': '❌'
         }.get(o['status'], '❓')
         status_text = {
             'new': 'Новый, ожидает подтверждения',
             'payment': 'Ожидает оплаты',
-            'completed': 'Выполнен'
+            'completed': 'Выполнен',
+            'cancelled': 'Отменён'
         }.get(o['status'], o['status'])
         
         text += f"{status_emoji} <b>Заказ #{o['id']}</b>\n"
@@ -1017,12 +1019,14 @@ async def admin_orders(callback: types.CallbackQuery):
         status_emoji = {
             'new': '🆕',
             'payment': '💳',
-            'completed': '✅'
+            'completed': '✅',
+            'cancelled': '❌'
         }.get(o['status'], '❓')
         status_text = {
             'new': 'Новый',
             'payment': 'Ожидает оплаты',
-            'completed': 'Выполнен'
+            'completed': 'Выполнен',
+            'cancelled': 'Отменён'
         }.get(o['status'], o['status'])
         
         text += f"{status_emoji} <b>#{o['id']}</b>\n"
@@ -1039,6 +1043,11 @@ async def admin_orders(callback: types.CallbackQuery):
             kb.append([InlineKeyboardButton(
                 text=f"✅ Принять #{o['id']}",
                 callback_data=f"accept_{o['id']}"
+            )])
+        if o['status'] in ['new', 'payment']:
+            kb.append([InlineKeyboardButton(
+                text=f"❌ Отменить #{o['id']}",
+                callback_data=f"cancel_order_{o['id']}"
             )])
     kb.append([InlineKeyboardButton(text="🔙 В админку", callback_data="admin")])
     
@@ -1075,6 +1084,32 @@ async def accept_order(callback: types.CallbackQuery):
     )
     
     await callback.answer("✅ Заказ принят, клиенту отправлена ссылка на оплату")
+    await admin_orders(callback)
+
+@dp.callback_query(F.data.startswith("cancel_order_"))
+async def cancel_order_admin(callback: types.CallbackQuery):
+    order_id = callback.data.replace("cancel_order_", "")
+    orders = get_orders()
+    
+    order = None
+    for o in orders:
+        if o['id'] == order_id:
+            o['status'] = 'cancelled'
+            order = o
+            break
+    
+    save_orders(orders)
+    
+    await notify_user(
+        order['user_id'],
+        f"❌ <b>Заказ #{order_id} отменён</b>\n\n"
+        f"💎 Товар: {order['product_name']}\n"
+        f"💰 Сумма: {order['price']}₽\n\n"
+        f"К сожалению, заказ был отменён администратором.\n"
+        f"По всем вопросам пиши @x40vef4yX"
+    )
+    
+    await callback.answer("❌ Заказ отменён")
     await admin_orders(callback)
 
 @dp.callback_query(F.data == "admin_reviews")
@@ -1164,6 +1199,7 @@ async def admin_stats(callback: types.CallbackQuery):
     
     total_orders = len(orders)
     completed_orders = len([o for o in orders if o['status'] == 'completed'])
+    cancelled_orders = len([o for o in orders if o['status'] == 'cancelled'])
     total_revenue = sum(o['price'] for o in orders if o['status'] == 'completed')
     total_clients = len(clients)
     total_reviews = len(reviews)
@@ -1175,6 +1211,7 @@ async def admin_stats(callback: types.CallbackQuery):
         f"📊 <b>Статистика</b>\n\n"
         f"📦 Всего заказов: {total_orders}\n"
         f"✅ Выполнено: {completed_orders}\n"
+        f"❌ Отменено: {cancelled_orders}\n"
         f"💰 Выручка: {total_revenue}₽\n"
         f"👥 Клиентов: {total_clients}\n"
         f"⭐️ Отзывов: {approved_reviews}/{total_reviews}\n"
